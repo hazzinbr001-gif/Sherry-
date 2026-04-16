@@ -1,0 +1,16 @@
+{
+  "version": "4.2.0",
+  "phase": "Elite",
+  "updated": "2026-04-11",
+  "api_version": "5.4.0",
+  "changes": [
+    "v4.2: Medisync logo intro, dark mode, smart forms, resume survey, trust layer, enhanced toasts, page transitions, premium focus states, card depth, typography polish",
+    "Removed direct Supabase calls \u2014 all requests go through secure API",
+    "Added api-client.js with full HS.* SDK",
+    "JWT-based authentication",
+    "Push notification support (Web Push + FCM)",
+    "Google and Microsoft SSO",
+    "Dynamic survey builder support",
+    "Offline sync upgraded to use /api/survey/submit"
+  ]
+}
