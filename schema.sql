@@ -82,7 +82,17 @@ CREATE TABLE IF NOT EXISTS questionnaires (
   created_at    timestamptz DEFAULT now()
 );
 
--- ── 7. VERIFY SETUP ──────────────────────────────────────────
+-- ── 8. IDENTITY / PHOTO COLUMNS ─────────────────────────────
+-- Student photos (URLs from Supabase Storage, written back after sync)
+ALTER TABLE chsa_students
+  ADD COLUMN IF NOT EXISTS profile_photo_url  text,
+  ADD COLUMN IF NOT EXISTS field_photo_url    text;
+
+-- Institution photos
+ALTER TABLE institutions
+  ADD COLUMN IF NOT EXISTS group_photo_url     text,
+  ADD COLUMN IF NOT EXISTS map_screenshot_url  text;
+
 -- Run this to confirm all columns exist:
 SELECT column_name, data_type
 FROM information_schema.columns

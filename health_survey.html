@@ -17,62 +17,122 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
   //  Global config — required by all survey-*.js and admin-*.js files 
-  window.HS_API_BASE  = ''; // set to your Vercel URL if using the backend
+  window.HS_API_BASE  = 'https://premiumhealthsurvey-backend-c3hi.vercel.app'; // Vercel backend
   window.SUPABASE_URL = 'https://tftbysxozanxauxuuptw.supabase.co';
   window.SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY'; // ← paste your anon key here
   var SUPABASE_URL = window.SUPABASE_URL;
   var SUPABASE_KEY = window.SUPABASE_KEY;
 </script>
+<script src="./api-client.js"></script>
 <!-- Styles -->
 <link rel="stylesheet" href="./mss-styles.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 
 <!--  THEME SYSTEM  -->
 <style>
-/*  DARK THEME (default)  */
-:root, [data-theme="dark"] {
-  --hp-bg: #000000;
-  --hp-bg2: #060a0f;
-  --hp-surface: rgba(255,255,255,.04);
-  --hp-surface-hover: rgba(255,255,255,.08);
-  --hp-border: rgba(255,255,255,.07);
-  --hp-border-hover: rgba(255,255,255,.14);
-  --hp-text: #ffffff;
-  --hp-text-sub: rgba(255,255,255,.5);
-  --hp-text-muted: rgba(255,255,255,.28);
-  --hp-accent: #2e7cf6;
-  --hp-accent-glow: rgba(46,124,246,.3);
-  --hp-stat-bg: rgba(255,255,255,.04);
-  --hp-stat-border: rgba(255,255,255,.07);
-  --hp-footer-bg: rgba(0,0,0,.5);
-  --hp-footer-border: rgba(255,255,255,.05);
-  --topbar-bg: linear-gradient(135deg,#000000 0%,#0a1628 100%);
-  --topbar-border: rgba(46,124,246,.2);
-  --glow1: rgba(13,40,100,.6);
-  --glow2: rgba(10,16,30,.5);
+/* ═══════════════════════════════════════════════════════════
+   SECTION COLOR PALETTE — each of 12 survey sections gets
+   its own hue. Used as CSS custom properties on .sec-* wrappers
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  /* Intro / Consent */
+  --sec0-h: 210; --sec0-c: #3b82f6; --sec0-g: linear-gradient(135deg,#1d4ed8,#3b82f6);
+  /* Section A — Demography */
+  --sec1-h: 262; --sec1-c: #8b5cf6; --sec1-g: linear-gradient(135deg,#6d28d9,#8b5cf6);
+  /* Section B — Housing */
+  --sec2-h: 32;  --sec2-c: #f59e0b; --sec2-g: linear-gradient(135deg,#d97706,#f59e0b);
+  /* Section C — Water & Sanitation */
+  --sec3-h: 186; --sec3-c: #06b6d4; --sec3-g: linear-gradient(135deg,#0891b2,#06b6d4);
+  /* Section D — Food & Nutrition */
+  --sec4-h: 142; --sec4-c: #22c55e; --sec4-g: linear-gradient(135deg,#15803d,#22c55e);
+  /* Section E — Child Health */
+  --sec5-h: 349; --sec5-c: #f43f5e; --sec5-g: linear-gradient(135deg,#be123c,#f43f5e);
+  /* Section F — Maternal */
+  --sec6-h: 316; --sec6-c: #ec4899; --sec6-g: linear-gradient(135deg,#be185d,#ec4899);
+  /* Section G — HIV/TB */
+  --sec7-h: 0;   --sec7-c: #ef4444; --sec7-g: linear-gradient(135deg,#b91c1c,#ef4444);
+  /* Section H — NCDs */
+  --sec8-h: 24;  --sec8-c: #f97316; --sec8-g: linear-gradient(135deg,#c2410c,#f97316);
+  /* Section I — Mental Health */
+  --sec9-h: 258; --sec9-c: #a855f7; --sec9-g: linear-gradient(135deg,#7e22ce,#a855f7);
+  /* Section J — Health Seeking */
+  --sec10-h:168; --sec10-c:#10b981; --sec10-g:linear-gradient(135deg,#065f46,#10b981);
+  /* Section K — Summary / Finish */
+  --sec11-h:45;  --sec11-c:#eab308; --sec11-g:linear-gradient(135deg,#a16207,#eab308);
 }
 
-/*  LIGHT THEME  */
+/*  ── DARK THEME (default) ──  */
+:root, [data-theme="dark"] {
+  --hp-bg: #07090f;
+  --hp-bg2: #0c1020;
+  --hp-surface: rgba(255,255,255,.045);
+  --hp-surface-hover: rgba(255,255,255,.085);
+  --hp-border: rgba(100,140,255,.1);
+  --hp-border-hover: rgba(100,140,255,.22);
+  --hp-text: #e8eeff;
+  --hp-text-sub: rgba(200,215,255,.58);
+  --hp-text-muted: rgba(180,200,255,.28);
+  --hp-accent: #60a5fa;
+  --hp-accent-glow: rgba(96,165,250,.25);
+  --hp-stat-bg: rgba(96,165,250,.06);
+  --hp-stat-border: rgba(96,165,250,.15);
+  --hp-footer-bg: rgba(7,9,15,.88);
+  --hp-footer-border: rgba(96,165,250,.08);
+  --topbar-bg: linear-gradient(135deg,#050a14 0%,#0c1a30 60%,#111827 100%);
+  --topbar-border: rgba(96,165,250,.18);
+  --glow1: rgba(59,130,246,.15);
+  --glow2: rgba(139,92,246,.12);
+  /* survey */
+  --sv-page-bg: #07090f;
+  --sv-card-bg: rgba(255,255,255,.04);
+  --sv-card-border: rgba(100,140,255,.12);
+  --sv-input-bg: rgba(255,255,255,.05);
+  --sv-input-border: rgba(100,140,255,.2);
+  --sv-text: #e8eeff;
+  --sv-text-sub: rgba(200,215,255,.55);
+  --sv-muted: rgba(180,200,255,.28);
+  --sv-tag-alpha: .14;
+  --sv-required: #fb7185;
+  --sv-nav-bg: rgba(7,9,15,.92);
+  --sv-nav-border: rgba(96,165,250,.1);
+  --sv-prog-track: rgba(255,255,255,.07);
+}
+
+/*  ── LIGHT THEME — vivid, NOT plain white ──  */
 [data-theme="light"] {
-  --hp-bg: #ffffff;
-  --hp-bg2: #f4f7fc;
-  --hp-surface: rgba(0,0,0,.03);
-  --hp-surface-hover: rgba(0,0,0,.06);
-  --hp-border: rgba(0,0,0,.07);
-  --hp-border-hover: rgba(0,0,0,.14);
-  --hp-text: #060f1e;
-  --hp-text-sub: rgba(6,15,30,.55);
-  --hp-text-muted: rgba(6,15,30,.35);
-  --hp-accent: #1a5fa8;
-  --hp-accent-glow: rgba(26,95,168,.15);
-  --hp-stat-bg: rgba(0,0,0,.03);
-  --hp-stat-border: rgba(0,0,0,.07);
-  --hp-footer-bg: rgba(240,244,252,.9);
-  --hp-footer-border: rgba(0,0,0,.07);
-  --topbar-bg: linear-gradient(135deg,#0d3b66 0%,#1a5fa8 100%);
-  --topbar-border: rgba(255,255,255,.15);
-  --glow1: rgba(26,95,168,.08);
-  --glow2: rgba(46,124,246,.05);
+  --hp-bg: #f3f4ff;
+  --hp-bg2: #eaecff;
+  --hp-surface: rgba(255,255,255,.8);
+  --hp-surface-hover: rgba(255,255,255,.97);
+  --hp-border: rgba(79,70,229,.14);
+  --hp-border-hover: rgba(79,70,229,.32);
+  --hp-text: #1a1740;
+  --hp-text-sub: rgba(26,23,64,.62);
+  --hp-text-muted: rgba(26,23,64,.38);
+  --hp-accent: #4f46e5;
+  --hp-accent-glow: rgba(79,70,229,.16);
+  --hp-stat-bg: rgba(255,255,255,.88);
+  --hp-stat-border: rgba(79,70,229,.18);
+  --hp-footer-bg: rgba(220,224,255,.92);
+  --hp-footer-border: rgba(79,70,229,.1);
+  --topbar-bg: linear-gradient(135deg,#2e1065 0%,#4f46e5 55%,#6d28d9 100%);
+  --topbar-border: rgba(255,255,255,.2);
+  --glow1: rgba(79,70,229,.12);
+  --glow2: rgba(219,39,119,.07);
+  /* survey */
+  --sv-page-bg: #f3f4ff;
+  --sv-card-bg: rgba(255,255,255,.88);
+  --sv-card-border: rgba(79,70,229,.16);
+  --sv-input-bg: rgba(255,255,255,.95);
+  --sv-input-border: rgba(79,70,229,.22);
+  --sv-text: #1a1740;
+  --sv-text-sub: rgba(26,23,64,.6);
+  --sv-muted: rgba(26,23,64,.35);
+  --sv-tag-alpha: .1;
+  --sv-required: #e11d48;
+  --sv-nav-bg: rgba(235,237,255,.95);
+  --sv-nav-border: rgba(79,70,229,.12);
+  --sv-prog-track: rgba(79,70,229,.1);
 }
 
 /*  SPLASH SCREEN  */
@@ -237,6 +297,396 @@
 
 /*  Auth area dark bg stays dark regardless of theme  */
 #welcome-screen, #lamp-room, #lamp-auth { color-scheme: dark; }
+
+/* ═══════════════════════════════════════════════════════════
+   SURVEY PAGE BACKGROUND & GLOBAL SURVEY CHROME
+   ═══════════════════════════════════════════════════════════ */
+
+/* Make light theme page a soft gradient, not white */
+[data-theme="light"] body,
+[data-theme="light"] #home-page { background: var(--hp-bg) !important; }
+
+[data-theme="light"] .secs-wrap,
+[data-theme="light"] #secsWrap {
+  background: linear-gradient(160deg, #eef0ff 0%, #fdf4ff 50%, #ecfdf5 100%) !important;
+}
+[data-theme="dark"] .secs-wrap,
+[data-theme="dark"] #secsWrap {
+  background: var(--sv-page-bg) !important;
+}
+
+/* Progress bar track */
+.prog-bar {
+  background: var(--sv-prog-track) !important;
+}
+
+/* Step label bar */
+.step-bar {
+  color: var(--sv-text-sub) !important;
+}
+[data-theme="light"] .step-bar { color: rgba(255,255,255,.85) !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   SECTION CARD BASE — glass morphism in both themes
+   ═══════════════════════════════════════════════════════════ */
+.sec, .sec-wrap, .section, [class^="sec-"],
+.card-sec, .survey-sec, .q-sec {
+  background: var(--sv-card-bg) !important;
+  border: 1.5px solid var(--sv-card-border) !important;
+  border-radius: 22px !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  margin: 12px 14px !important;
+  overflow: hidden !important;
+  box-shadow: 0 4px 28px rgba(0,0,0,.08) !important;
+  transition: box-shadow .2s !important;
+}
+
+/* Section inner padding */
+.sec-body, .sec-content, .section-body {
+  padding: 18px 16px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SECTION HEADER — colored top strip per section
+   ═══════════════════════════════════════════════════════════ */
+.sec-hdr, .section-hdr, .sec-header, .section-header {
+  padding: 14px 16px 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  border-bottom: 1px solid var(--sv-card-border) !important;
+}
+
+/* Section title text */
+.sec-title, .section-title, .sec-hdr-title, .hdr-title {
+  font-weight: 800 !important;
+  font-size: 1rem !important;
+  color: var(--sv-text) !important;
+  letter-spacing: -.02em !important;
+}
+
+/* Section tag / badge pill */
+.sec-tag, .section-tag, .tag, .sec-badge {
+  font-size: .6rem !important;
+  font-weight: 800 !important;
+  letter-spacing: .8px !important;
+  text-transform: uppercase !important;
+  padding: 3px 10px !important;
+  border-radius: 99px !important;
+  flex-shrink: 0 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PER-SECTION COLOR CLASSES
+   sec-color-0 … sec-color-11
+   Applied to the section wrapper or header by survey-core.js
+   ═══════════════════════════════════════════════════════════ */
+
+/* Helper mixin via CSS — each section uses its own hue */
+.sec-color-0  { --sc: var(--sec0-c);  --sg: var(--sec0-g);  }
+.sec-color-1  { --sc: var(--sec1-c);  --sg: var(--sec1-g);  }
+.sec-color-2  { --sc: var(--sec2-c);  --sg: var(--sec2-g);  }
+.sec-color-3  { --sc: var(--sec3-c);  --sg: var(--sec3-g);  }
+.sec-color-4  { --sc: var(--sec4-c);  --sg: var(--sec4-g);  }
+.sec-color-5  { --sc: var(--sec5-c);  --sg: var(--sec5-g);  }
+.sec-color-6  { --sc: var(--sec6-c);  --sg: var(--sec6-g);  }
+.sec-color-7  { --sc: var(--sec7-c);  --sg: var(--sec7-g);  }
+.sec-color-8  { --sc: var(--sec8-c);  --sg: var(--sec8-g);  }
+.sec-color-9  { --sc: var(--sec9-c);  --sg: var(--sec9-g);  }
+.sec-color-10 { --sc: var(--sec10-c); --sg: var(--sec10-g); }
+.sec-color-11 { --sc: var(--sec11-c); --sg: var(--sec11-g); }
+
+/* Colored left accent bar on each section card */
+.sec-color-0,.sec-color-1,.sec-color-2,.sec-color-3,
+.sec-color-4,.sec-color-5,.sec-color-6,.sec-color-7,
+.sec-color-8,.sec-color-9,.sec-color-10,.sec-color-11 {
+  border-left: 4px solid var(--sc) !important;
+  box-shadow: 0 4px 28px rgba(0,0,0,.08), 4px 0 0 0 var(--sc) inset !important;
+}
+
+/* Colored section tag badge */
+.sec-color-0  .sec-tag, .sec-color-1  .sec-tag, .sec-color-2  .sec-tag,
+.sec-color-3  .sec-tag, .sec-color-4  .sec-tag, .sec-color-5  .sec-tag,
+.sec-color-6  .sec-tag, .sec-color-7  .sec-tag, .sec-color-8  .sec-tag,
+.sec-color-9  .sec-tag, .sec-color-10 .sec-tag, .sec-color-11 .sec-tag,
+.sec-color-0  .tag, .sec-color-1  .tag, .sec-color-2  .tag,
+.sec-color-3  .tag, .sec-color-4  .tag, .sec-color-5  .tag,
+.sec-color-6  .tag, .sec-color-7  .tag, .sec-color-8  .tag,
+.sec-color-9  .tag, .sec-color-10 .tag, .sec-color-11 .tag {
+  background: color-mix(in srgb, var(--sc) 15%, transparent) !important;
+  color: var(--sc) !important;
+  border: 1px solid color-mix(in srgb, var(--sc) 30%, transparent) !important;
+}
+
+/* Colored section title gradient text */
+.sec-color-0  .sec-title, .sec-color-1  .sec-title, .sec-color-2  .sec-title,
+.sec-color-3  .sec-title, .sec-color-4  .sec-title, .sec-color-5  .sec-title,
+.sec-color-6  .sec-title, .sec-color-7  .sec-title, .sec-color-8  .sec-title,
+.sec-color-9  .sec-title, .sec-color-10 .sec-title, .sec-color-11 .sec-title {
+  background: var(--sg) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+/* ── Consent intro text box (dark bg box) ── */
+.consent-box, .intro-box, .interviewer-intro {
+  background: color-mix(in srgb, var(--sc, #3b82f6) 8%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--sc, #3b82f6) 20%, transparent) !important;
+  border-radius: 14px !important;
+  padding: 14px !important;
+  color: var(--sv-text-sub) !important;
+  font-size: .82rem !important;
+  line-height: 1.65 !important;
+}
+
+/* Interviewer chip */
+.interviewer-chip, .iv-chip {
+  background: color-mix(in srgb, var(--sc, #3b82f6) 8%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--sc, #3b82f6) 18%, transparent) !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   QUESTION NUMBER BADGE
+   ═══════════════════════════════════════════════════════════ */
+.q-num, .qnum, .num, .q-number,
+[class*="q-num"], [class*="qnum"] {
+  background: var(--sg, var(--sec0-g)) !important;
+  color: #fff !important;
+  font-weight: 800 !important;
+  border-radius: 9px !important;
+  padding: 3px 9px !important;
+  font-size: .72rem !important;
+  flex-shrink: 0 !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,.2) !important;
+  letter-spacing: .3px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   QUESTION LABELS & TEXT
+   ═══════════════════════════════════════════════════════════ */
+.q-label, .qlabel, .question-text, .q-text,
+.field-label, .q-row label {
+  color: var(--sv-text) !important;
+  font-weight: 700 !important;
+}
+
+.q-sub, .q-note, .hint {
+  color: var(--sv-text-sub) !important;
+  font-size: .74rem !important;
+}
+
+/* Required asterisk */
+.req, .required-star, span.star,
+span[style*="color:red"], span[style*="color:#e"],
+span[style*="color: red"] {
+  color: var(--sv-required) !important;
+  -webkit-text-fill-color: var(--sv-required) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INPUTS — text, number, date, select, textarea
+   ═══════════════════════════════════════════════════════════ */
+.q-input, input[type="text"], input[type="number"],
+input[type="date"], input[type="email"], input[type="tel"],
+textarea, select {
+  background: var(--sv-input-bg) !important;
+  border: 1.5px solid var(--sv-input-border) !important;
+  color: var(--sv-text) !important;
+  border-radius: 12px !important;
+  padding: 13px 14px !important;
+  font-family: inherit !important;
+  font-size: .9rem !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  transition: border-color .2s, box-shadow .2s !important;
+  -webkit-appearance: none !important;
+}
+input:focus, textarea:focus, select:focus {
+  border-color: var(--sc, var(--hp-accent)) !important;
+  box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--sc, var(--hp-accent)) 16%, transparent) !important;
+  outline: none !important;
+}
+input::placeholder, textarea::placeholder {
+  color: var(--sv-muted) !important;
+  opacity: 1 !important;
+}
+[data-theme="dark"] select option { background: #0c1020 !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   RADIO / CHECKBOX OPTION PILLS
+   ═══════════════════════════════════════════════════════════ */
+.option, .opt, .choice, .radio-opt, .ans,
+.option-btn, .ans-pill, .choice-pill,
+[class*="option"], [class*="ans-"], [class*="choice-"] {
+  background: var(--sv-input-bg) !important;
+  border: 1.5px solid var(--sv-input-border) !important;
+  border-radius: 50px !important;
+  color: var(--sv-text) !important;
+  padding: 10px 16px !important;
+  font-size: .84rem !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  transition: background .14s, border-color .14s, transform .1s, box-shadow .14s !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+.option:active, .opt:active, .choice:active {
+  transform: scale(.96) !important;
+}
+.option.sel, .opt.sel, .choice.sel,
+.option.selected, .opt.selected, .choice.selected,
+.option.active, .opt.active, .choice.active,
+.option[aria-selected="true"], .option[data-sel="1"] {
+  background: color-mix(in srgb, var(--sc, var(--hp-accent)) 14%, transparent) !important;
+  border-color: var(--sc, var(--hp-accent)) !important;
+  color: var(--sc, var(--hp-accent)) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sc, var(--hp-accent)) 12%, transparent) !important;
+}
+
+/* Radio circle dot */
+.radio-circle, .r-dot {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--sv-input-border);
+  flex-shrink: 0;
+  transition: border-color .14s, background .14s;
+}
+.option.sel .radio-circle, .option.selected .radio-circle {
+  border-color: var(--sc, var(--hp-accent)) !important;
+  background: var(--sc, var(--hp-accent)) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--sc, var(--hp-accent)) 25%, transparent) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PROGRESS BAR — colored per section
+   ═══════════════════════════════════════════════════════════ */
+.prog-fill, #pFill {
+  background: var(--sc, var(--hp-accent)) !important;
+  box-shadow: 0 0 8px color-mix(in srgb, var(--sc, var(--hp-accent)) 50%, transparent) !important;
+  transition: width .4s ease, background .4s ease !important;
+  border-radius: 0 99px 99px 0 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BOTTOM NAV BAR
+   ═══════════════════════════════════════════════════════════ */
+.bot-nav {
+  background: var(--sv-nav-bg) !important;
+  border-top: 1px solid var(--sv-nav-border) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+
+/* NEXT button — section-colored gradient */
+.btn-next, #bNext {
+  background: var(--sg, linear-gradient(135deg,#1d4ed8,#3b82f6)) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 50px !important;
+  font-weight: 800 !important;
+  font-size: .92rem !important;
+  letter-spacing: .2px !important;
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--sc, #3b82f6) 40%, transparent) !important;
+  transition: transform .14s, box-shadow .14s, background .3s !important;
+}
+.btn-next:active, #bNext:active {
+  transform: scale(.96) !important;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--sc, #3b82f6) 25%, transparent) !important;
+}
+
+/* BACK button */
+.btn-prev, #bPrev {
+  background: var(--sv-input-bg) !important;
+  border: 1.5px solid var(--sv-input-border) !important;
+  color: var(--sv-text) !important;
+  border-radius: 50px !important;
+  font-weight: 700 !important;
+}
+
+/* FINISH button */
+.btn-finish, #bFin {
+  background: linear-gradient(135deg, #15803d, #22c55e) !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 50px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 18px rgba(34,197,94,.35) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   HOME PAGE ENHANCEMENTS
+   ═══════════════════════════════════════════════════════════ */
+
+/* Light page background — soft gradient */
+[data-theme="light"] #home-page {
+  background: linear-gradient(155deg, #eef0ff 0%, #faf4ff 45%, #ecfdf8 100%) !important;
+}
+
+/* Light topbar — vivid purple */
+[data-theme="light"] .topbar {
+  background: linear-gradient(135deg, #2e1065 0%, #4f46e5 55%, #6d28d9 100%) !important;
+  border-bottom-color: rgba(255,255,255,.15) !important;
+}
+
+/* Stat cards — colored top borders */
+[data-theme="light"] .hp-stat-card:nth-child(1) { border-top: 3px solid var(--sec1-c) !important; }
+[data-theme="light"] .hp-stat-card:nth-child(2) { border-top: 3px solid var(--sec5-c) !important; }
+[data-theme="light"] .hp-stat-card:nth-child(3) { border-top: 3px solid var(--sec4-c) !important; }
+[data-theme="dark"]  .hp-stat-card:nth-child(1) { border-top: 3px solid var(--sec3-c) !important; }
+[data-theme="dark"]  .hp-stat-card:nth-child(2) { border-top: 3px solid var(--sec6-c) !important; }
+[data-theme="dark"]  .hp-stat-card:nth-child(3) { border-top: 3px solid var(--sec4-c) !important; }
+
+/* Home buttons — glassmorphism */
+[data-theme="light"] .hp-btn {
+  background: rgba(255,255,255,.82) !important;
+  backdrop-filter: blur(10px) !important;
+  box-shadow: 0 2px 18px rgba(79,70,229,.1) !important;
+}
+[data-theme="light"] .hp-btn:nth-child(1) { border-color: rgba(139,92,246,.3) !important; }
+[data-theme="light"] .hp-btn:nth-child(2) { border-color: rgba(244,63,94,.25) !important; }
+[data-theme="light"] .hp-btn:nth-child(3) { border-color: rgba(16,185,129,.25) !important; }
+
+/* Primary button stays vivid */
+.hp-btn-primary {
+  background: var(--sec0-g) !important;
+  box-shadow: 0 6px 24px rgba(59,130,246,.4) !important;
+}
+
+/* Light mesh grid with purple tint */
+[data-theme="light"] .hp-mesh {
+  background-image:
+    linear-gradient(rgba(79,70,229,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139,92,246,.03) 1px, transparent 1px) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   JS OVERRIDE — prevent inline style="#ffffff" from JS
+   ═══════════════════════════════════════════════════════════ */
+[data-theme="light"] #home-page[style*="background: rgb(255, 255, 255)"],
+[data-theme="light"] #home-page[style*="background: #ffffff"],
+[data-theme="light"] #home-page[style*="background:#ffffff"] {
+  background: linear-gradient(155deg, #eef0ff 0%, #faf4ff 45%, #ecfdf8 100%) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SMOOTH TRANSITIONS EVERYWHERE
+   ═══════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  transition: background-color .22s ease, border-color .22s ease,
+              color .15s ease, box-shadow .2s ease !important;
+}
+/* Don't animate transforms with the catch-all */
+.option:active, .btn-next:active, .btn-prev:active,
+.hp-btn:active { transition: transform .1s !important; }
 </style>
 </head>
 <body>
@@ -258,6 +708,52 @@
 (function(){
   const t = localStorage.getItem('mss-theme') || 'dark';
   document.documentElement.setAttribute('data-theme', t);
+})();
+
+// ── Section color assignment ──
+// Watches secsWrap and paints sec-color-N on each section card
+// so the per-section CSS palette applies automatically.
+(function(){
+  function paintSections(){
+    var wrap = document.getElementById('secsWrap');
+    if(!wrap) return;
+    // Try common class patterns used by survey-core.js
+    var cards = wrap.querySelectorAll(
+      '.sec, .sec-wrap, .section, .survey-section, .q-sec, ' +
+      '[class*="sec-wrap"], [class*="section-wrap"], ' +
+      '.card-sec, .s-card, > div'
+    );
+    // De-duplicate (querySelector may overlap)
+    var seen = new Set();
+    var unique = [];
+    cards.forEach(function(c){ if(!seen.has(c)){ seen.add(c); unique.push(c); } });
+    unique.forEach(function(card, i){
+      for(var n=0;n<12;n++) card.classList.remove('sec-color-'+n);
+      card.classList.add('sec-color-'+(i%12));
+    });
+    // Sync active section color to progress bar and next button
+    var active = wrap.querySelector('.active, .sec-active, .section.on, [class*="active"]');
+    if(active){
+      var cs = getComputedStyle(active);
+      var sc = cs.getPropertyValue('--sc').trim();
+      var sg = cs.getPropertyValue('--sg').trim();
+      var fill = document.getElementById('pFill');
+      var next = document.getElementById('bNext');
+      if(fill && sc){ fill.style.cssText += ';--sc:'+sc; }
+      if(next && sc){ next.style.cssText += ';--sc:'+sc+';--sg:'+sg; }
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function(){
+    paintSections();
+    var wrap = document.getElementById('secsWrap');
+    if(wrap){
+      new MutationObserver(function(){ paintSections(); })
+        .observe(wrap, {childList:true, subtree:true, attributes:true, attributeFilter:['class','style']});
+    }
+    // Poll for 4s in case survey-core.js injects sections late
+    var n=0; var iv=setInterval(function(){ paintSections(); if(++n>8) clearInterval(iv); },500);
+  });
+  window.addEventListener('load', function(){ paintSections(); });
 })();
 
 //  Splash animation 
@@ -541,18 +1037,6 @@ window.addEventListener('load', function(){
         <div class="hp-btn-arrow">›</div>
       </button>
 
-      <!-- SYNC DATA -->
-      <button onclick="homeGoSurvey();setTimeout(openSyncModal,500)" class="hp-btn"
-        ontouchstart="this.style.transform='scale(0.97)'"
-        ontouchend="this.style.transform=''">
-        <div class="hp-btn-icon">️</div>
-        <div>
-          <div class="hp-btn-label">Sync Data</div>
-          <div class="hp-btn-sub">Upload records to the server</div>
-        </div>
-        <div class="hp-btn-arrow">›</div>
-      </button>
-
       <!-- SETTINGS -->
       <button onclick="openSettingsModal()" class="hp-btn"
         ontouchstart="this.style.transform='scale(0.97)'"
@@ -620,23 +1104,7 @@ window.addEventListener('load', function(){
       </div>
     </div>
 
-    <!-- Go home (survey page → home) -->
-    <div class="settings-item" onclick="goBackHome();closeSettingsModal()">
-      <div class="settings-item-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
-      <div>
-        <div class="settings-item-label">Home</div>
-        <div class="settings-item-sub">Return to home screen</div>
-      </div>
-    </div>
 
-    <!-- Records -->
-    <div class="settings-item" onclick="openDrawer();closeSettingsModal()">
-      <div class="settings-item-icon"></div>
-      <div>
-        <div class="settings-item-label">Records Drawer</div>
-        <div class="settings-item-sub">Browse all saved records</div>
-      </div>
-    </div>
 
     <button onclick="closeSettingsModal()" style="width:100%;margin-top:6px;padding:13px;background:var(--hp-surface);border:1px solid var(--hp-border);border-radius:14px;color:var(--hp-text-sub);font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;">Close</button>
   </div>
@@ -676,11 +1144,13 @@ document.addEventListener('DOMContentLoaded', ()=>{
 <!--  -->
 <div class="topbar">
   <div class="tb-left">
-    <img src="./medisync-logo.png" alt="MSS" style="height:32px;width:auto;object-fit:contain;filter:drop-shadow(0 1px 6px rgba(46,124,246,.4));">
-    <div style="margin-left:10px;">
-      <div class="tb-title" style="font-size:.82rem;font-weight:800;color:#fff;letter-spacing:-.01em;">Medical Survey System</div>
-      <div class="tb-sub" style="font-size:.55rem;color:rgba(255,255,255,.45);letter-spacing:.4px;">Great Lakes · Nyamache</div>
-    </div>
+    <button id="logo-home-btn" onclick="goBackHome()" title="Go to Home" style="display:flex;align-items:center;gap:0;background:none;border:none;padding:4px 8px 4px 0;cursor:pointer;border-radius:10px;-webkit-tap-highlight-color:transparent;">
+      <img src="./medisync-logo.png" alt="MSS" style="height:32px;width:auto;object-fit:contain;filter:drop-shadow(0 1px 6px rgba(46,124,246,.4));">
+      <div style="margin-left:10px;text-align:left;">
+        <div class="tb-title" style="font-size:.82rem;font-weight:800;color:#fff;letter-spacing:-.01em;">Medical Survey System</div>
+        <div class="tb-sub" style="font-size:.55rem;color:rgba(255,255,255,.45);letter-spacing:.4px;">Great Lakes · Nyamache</div>
+      </div>
+    </button>
   </div>
   <div style="display:flex;gap:8px;align-items:center;">
     <!-- Online/Offline status — no button, just indicator -->
@@ -703,9 +1173,45 @@ document.addEventListener('DOMContentLoaded', ()=>{
 <div class="secs-wrap" id="secsWrap"></div>
 
 <div class="bot-nav">
-  <button class="btn-prev" id="bPrev" onclick="prevSec()">←</button>
+  <button class="btn-prev btn-home-nav" id="bHomeNav" onclick="goBackHome()" style="display:none">🏠 Home</button>
+  <button class="btn-prev" id="bPrev" onclick="prevSec()">← Back</button>
   <button class="btn-next" id="bNext" onclick="nextSec()">Next →</button>
-  <button class="btn-finish" id="bFin" style="display:none" onclick="showFinish()"> Finish &amp; Print</button>
+  <button class="btn-finish" id="bFin" style="display:none" onclick="showFinish()"> Finish &amp; Save</button>
+</div>
+
+
+<!-- ── Student FAB: Save · Sync · Restore ── -->
+<div id="fab-container" class="fab-inactive">
+  <div class="fab-actions">
+    <button class="fab-action-btn" id="btn-fab-restore" title="Restore my records from server">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg>
+      <span>Restore</span>
+    </button>
+    <button class="fab-action-btn" id="btn-fab-sync" title="Upload records to server">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+      <span>Sync</span>
+    </button>
+    <button class="fab-action-btn" id="btn-fab-save" title="Save current progress">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      <span>Save</span>
+    </button>
+  </div>
+  <button id="fab-main" aria-label="Actions menu">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+</div>
+
+<!-- Restore records modal -->
+<div id="restore-modal" style="display:none;position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.6);align-items:flex-end;justify-content:center;">
+  <div style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:24px 20px calc(28px + env(safe-area-inset-bottom));font-family:inherit;">
+    <div style="text-align:center;margin-bottom:16px;">
+      <div style="font-size:2rem;margin-bottom:5px;">☁️</div>
+      <div style="font-size:1rem;font-weight:800;color:#0d3b66;">Restore My Records</div>
+      <div style="font-size:0.78rem;color:#6b8a74;margin-top:4px;line-height:1.5;" id="restore-status">Fetching your records from server…</div>
+    </div>
+    <div id="restore-list" style="max-height:48vh;overflow-y:auto;margin-bottom:14px;"></div>
+    <button onclick="closeRestoreModal()" style="width:100%;padding:13px;background:#f0f4f8;color:#5d7a8a;border:1.5px solid #dde8f0;border-radius:12px;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;">Close</button>
+  </div>
 </div>
 
 <div class="ov" id="ov" onclick="closeDrw()"></div>
@@ -733,7 +1239,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
 
 <!-- In-page report overlay — uses iframe to preserve all report styles -->
-<div id="report-overlay" style="display:none;">
+<div id="report-overlay" style="display:none;position:fixed;inset:0;z-index:9500;flex-direction:column;background:#fff;">
   <div id="report-toolbar">
     <span id="report-title">Report</span>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
@@ -1271,9 +1777,7 @@ function toggleTheme(){
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('mss-theme', next);
   _syncThemeIcons(next);
-  // update home page background
-  const hp = document.getElementById('home-page');
-  if(hp) hp.style.background = next==='dark' ? 'var(--hp-bg)' : '#ffffff';
+  // CSS variables handle backgrounds — no inline override needed
 }
 
 // Expose for admin panels
@@ -1309,11 +1813,11 @@ document.addEventListener('DOMContentLoaded', function(){
   const hp = document.getElementById('home-page');
   if(hp){
     const obs = new MutationObserver(function(){
-      const theme = document.documentElement.getAttribute('data-theme')||'dark';
-      hp.style.background = theme==='dark' ? '#000000' : '#ffffff';
+      // CSS variables handle theme backgrounds — clear any inline style
+      hp.style.background = '';
     });
     obs.observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
-    hp.style.background = t==='dark' ? '#000000' : '#ffffff';
+    hp.style.background = '';
   }
 });
 
@@ -1343,6 +1847,29 @@ function _updateNetStatus(){
 window.addEventListener('online',  _updateNetStatus);
 window.addEventListener('offline', _updateNetStatus);
 document.addEventListener('DOMContentLoaded', _updateNetStatus);
+
+//  Sync modal helpers (used by FAB Sync button and admin panel) 
+function openSyncModal() {
+  var modal  = document.getElementById('syncModal');
+  var status = document.getElementById('syncModalStatus');
+  var info   = document.getElementById('syncModalInfo');
+  if (!modal) return;
+  // Count unsynced records
+  var total = 0, unsynced = 0;
+  try {
+    var recs = JSON.parse(localStorage.getItem('chsa4') || '{}');
+    var keys = Object.keys(recs).filter(function(k){ return !k.startsWith('_'); });
+    total    = keys.length;
+    unsynced = keys.filter(function(k){ return !recs[k]._synced; }).length;
+  } catch(e) {}
+  if (status) status.textContent = navigator.onLine ? 'Ready to sync your records.' : 'You are offline — connect to sync.';
+  if (info)   info.innerHTML = '<strong>' + total + '</strong> total records &nbsp;·&nbsp; <strong>' + unsynced + '</strong> not yet synced';
+  modal.style.display = 'flex';
+}
+function closeSyncModal() {
+  var modal = document.getElementById('syncModal');
+  if (modal) modal.style.display = 'none';
+}
 </script>
 </body>
 </html>

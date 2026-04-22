@@ -3,6 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- Theme init — runs before first paint to prevent white flash and apply saved theme -->
+<script>
+  (function(){
+    var t = localStorage.getItem('mss-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
 <!-- Content Security Policy: restricts scripts/styles/connects to known safe origins only -->
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'self';
@@ -11,7 +18,7 @@
   font-src 'self' https://fonts.gstatic.com;
   connect-src 'self' https://*.vercel.app https://*.supabase.co https://api.emailjs.com https://api.safaricom.co.ke https://sandbox.safaricom.co.ke https://accounts.google.com https://fcm.googleapis.com;
   img-src 'self' data: blob:;
-  frame-src 'none';
+  frame-src 'self' blob:;
   object-src 'none';
 ">
 <meta name="mobile-web-app-capable" content="yes">
@@ -21,15 +28,14 @@
 <meta name="application-name" content="Medical Survey System (MSS)">
 <meta name="theme-color" content="#0d1826">
 <meta name="description" content="Medical Survey System (MSS) — Ministry of Health Kenya · Offline Data Collection">
-<link rel="manifest" href="./manifest.json?v=5.1">
+<link rel="manifest" href="./manifest.json?v=5.2">
 <link rel="apple-touch-icon" href="./icon-192.png">
 <title>Medical Survey System (MSS)</title>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Barlow+Condensed:wght@500;600;700;800;900&display=swap">
 
-
-<link rel="stylesheet" href="./mss-styles.css?v=7.0">
-<link rel="stylesheet" href="./mss-footer.css?v=6.1">
+<link rel="stylesheet" href="./mss-styles.css?v=7.1">
+<link rel="stylesheet" href="./mss-footer.css?v=6.2">
 
   <!-- ═══ v5.0 API Configuration ═══ 
        Set HS_API_BASE to your Vercel deployment URL.
@@ -53,10 +59,10 @@
 <!-- Admin styles now in survey-styles.css -->
 </head>
 <body>
-
-
+  
 <!-- ══════════════════════════ HOME PAGE ══════════════════════════ -->
-<div id="home-page" style="display:none;opacity:0;position:fixed;inset:0;z-index:7000;background:linear-gradient(160deg,#04080f 0%,#080f1a 50%,#04080f 100%);flex-direction:column;align-items:center;justify-content:space-between;overflow-y:auto;transition:opacity .4s ease;font-family:'DM Sans','Plus Jakarta Sans',sans-serif;transform:translateZ(0);-webkit-transform:translateZ(0);">
+<div id="home-page" style="display:none;opacity:0;position:fixed;inset:0;z-index:7000;background:linear-gradient(160deg,#04080f 0%,#080f1a 50%,#04080f 100%);flex-direction:column;align-items:center;justify-content:flex-start;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;transition:opacity .4s ease;font-family:'DM Sans','Plus Jakarta Sans',sans-serif;transform:translateZ(0);-webkit-transform:translateZ(0);">
+
   <div style="position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(rgba(37,99,235,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(37,99,235,.03) 1px,transparent 1px);background-size:36px 36px;z-index:0"></div>
   <div style="position:fixed;width:340px;height:340px;border-radius:50%;background:rgba(37,99,235,.3);filter:blur(80px);top:-100px;right:-80px;pointer-events:none;z-index:0"></div>
   <div style="position:fixed;width:260px;height:260px;border-radius:50%;background:rgba(13,148,136,.25);filter:blur(70px);bottom:-60px;left:-60px;pointer-events:none;z-index:0"></div>
@@ -69,18 +75,18 @@
     </div>
     <div style="width:100%;display:flex;flex-direction:column;gap:11px;margin-bottom:16px">
 
-      <!-- START SURVEY — primary action -->
-      <button data-role="survey-only" onclick="homeGoSurvey()" style="width:100%;padding:18px 20px;background:linear-gradient(135deg,#1d4ed8,#0d9488);border:none;border-radius:18px;cursor:pointer;display:flex;align-items:center;gap:14px;box-shadow:0 6px 28px rgba(37,99,235,.4);text-align:left;font-family:inherit" ontouchstart="this.style.opacity='.85'" ontouchend="this.style.opacity='1'">
-        <div style="width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📋</div>
-        <div style="flex:1"><div style="color:#fff;font-size:1rem;font-weight:800">New Interview</div><div style="color:rgba(255,255,255,.5);font-size:.7rem;margin-top:2px">Start a household health interview</div></div>
-        <div style="color:rgba(255,255,255,.3);font-size:1.3rem">›</div>
+      <!-- START SURVEY — secondary action -->
+      <button data-role="survey-only" onclick="homeGoSurvey()" style="width:100%;padding:16px 20px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:18px;cursor:pointer;display:flex;align-items:center;gap:14px;text-align:left;font-family:inherit" ontouchstart="this.style.opacity='.85'" ontouchend="this.style.opacity='1'">
+        <div style="width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📋</div>
+        <div style="flex:1"><div style="color:#fff;font-size:1rem;font-weight:800">New Interview</div><div style="color:rgba(255,255,255,.4);font-size:.7rem;margin-top:2px">Start a household health interview</div></div>
+        <div style="color:rgba(255,255,255,.2);font-size:1.3rem">›</div>
       </button>
 
-      <!-- MY REPORTS — view/print reports for finished interviews -->
-      <button data-role="survey-only" onclick="homeOpenMyReports()" style="width:100%;padding:16px 20px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:18px;cursor:pointer;display:flex;align-items:center;gap:14px;text-align:left;font-family:inherit" ontouchstart="this.style.opacity='.85'" ontouchend="this.style.opacity='1'">
-        <div style="width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📑</div>
-        <div style="flex:1"><div style="color:#fff;font-size:1rem;font-weight:800">My Reports</div><div style="color:rgba(255,255,255,.4);font-size:.7rem;margin-top:2px">View &amp; print reports for completed interviews</div></div>
-        <div style="color:rgba(255,255,255,.2);font-size:1.3rem">›</div>
+      <!-- MY REPORTS — BIG primary action button -->
+      <button data-role="survey-only" onclick="openMyReportsPanel()" style="width:100%;padding:18px 20px;background:linear-gradient(135deg,#1d4ed8,#0d9488);border:none;border-radius:18px;cursor:pointer;display:flex;align-items:center;gap:14px;box-shadow:0 6px 28px rgba(37,99,235,.4);text-align:left;font-family:inherit" ontouchstart="this.style.opacity='.85'" ontouchend="this.style.opacity='1'">
+        <div style="width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0">📑</div>
+        <div style="flex:1"><div style="color:#fff;font-size:1rem;font-weight:800">My Reports</div><div style="color:rgba(255,255,255,.5);font-size:.7rem;margin-top:2px">View & print reports for completed interviews</div></div>
+        <div style="color:rgba(255,255,255,.3);font-size:1.3rem">›</div>
       </button>
 
       <!-- 2-column row: My Progress + Sync -->
@@ -99,10 +105,10 @@
 
       <!-- SETTINGS button — opens settings sheet with all options -->
       <button onclick="openStudentSettings()" style="width:100%;padding:14px 20px;background:rgba(255,255,255,.04);border:1.5px solid rgba(255,255,255,.07);border-radius:18px;cursor:pointer;display:flex;align-items:center;gap:14px;text-align:left;font-family:inherit;margin-top:0;" ontouchstart="this.style.background='rgba(255,255,255,.1)'" ontouchend="this.style.background='rgba(255,255,255,.04)'">
-        <div style="width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">⚙️</div>
+        <div style="width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
         <div style="flex:1">
           <div style="color:rgba(255,255,255,.85);font-size:.9rem;font-weight:800">Settings &amp; Tools</div>
-          <div style="color:rgba(255,255,255,.35);font-size:.68rem;margin-top:2px">Install app · Records · Theme · Account</div>
+          <div style="color:rgba(255,255,255,.35);font-size:.68rem;margin-top:2px">Install app · Theme · Account</div>
         </div>
         <div style="color:rgba(255,255,255,.2);font-size:1.2rem">›</div>
       </button>
@@ -345,8 +351,7 @@
 }
 </style>
 
-
-<div id="survey-wrap" style="display:none;">
+<div id="survey-wrap" style="display:none;position:fixed;inset:0;z-index:7500;background:var(--bg-base,#080f1a);overflow-y:auto;">
 
   <!-- OFFLINE/SYNC STATUS BARS -->
   <div id="offline-bar" class="offline-bar">
@@ -361,19 +366,23 @@
   <!-- CLEAN SURVEY TOPBAR: logo + title + online/offline dot only -->
   <div class="topbar" id="survey-topbar">
     <div class="tb-left">
-      <div class="ph-logo" onclick="adminTap()" style="cursor:pointer">
-        <div class="ph-logo-mark" style="width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;"><img src="data:image/png;base64,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" alt="MSS" style="width:30px;height:30px;object-fit:contain;"></div>
+      <div class="ph-logo" onclick="showEnumeratorHome()" style="cursor:pointer">
+        <div class="ph-logo-mark" style="width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;"><img src="data:image/png;base64,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" alt="MSS" style="width:38px;height:38px;object-fit:contain;"></div>
         <div class="ph-logo-text">
-          <span class="ph-logo-name">MSS</span>
-          <span class="ph-logo-sub">Medical Survey System</span>
+          <span class="ph-logo-name" style="font-size:1.05rem!important;font-weight:800!important;">MSS</span>
+          <span class="ph-logo-sub" style="font-size:.52rem!important;">Medical Survey System</span>
         </div>
       </div>
     </div>
-    <!-- Right: only online/offline status dot -->
-    <div style="display:flex;align-items:center;gap:8px;padding-right:4px;">
+    <!-- Right: online/offline status dot + profile avatar -->
+    <div style="display:flex;align-items:center;gap:10px;padding-right:4px;">
       <div id="survey-status-dot" title="Connection status" style="display:flex;align-items:center;gap:6px;">
         <span id="survey-conn-dot" style="width:9px;height:9px;border-radius:50%;background:#4ade80;display:inline-block;transition:background .4s;box-shadow:0 0 6px rgba(74,222,128,.6);"></span>
-        <span id="survey-conn-lbl" style="font-size:.62rem;font-weight:700;color:rgba(255,255,255,.45);letter-spacing:.5px;">ONLINE</span>
+        <span id="survey-conn-lbl" style="font-size:.62rem;font-weight:700;color:rgba(255,255,255,.85);letter-spacing:.5px;">ONLINE</span>
+      </div>
+      <!-- Profile avatar — opens profile page -->
+      <div onclick="openProfilePage()" style="position:relative;cursor:pointer;" title="My Profile">
+        <img id="profileImage" src="default.png" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid rgba(37,99,235,.5);box-shadow:0 0 8px rgba(37,99,235,.3);" />
       </div>
     </div>
   </div>
@@ -398,14 +407,159 @@
     <button class="btn-finish" id="bFin" style="display:none" onclick="showFinish()">✓ Finish &amp; Save</button>
   </div>
 
+  <!-- ── FLOATING ACTION BUTTON (Survey page) ── -->
+  <div id="survey-fab-wrap" style="position:fixed;bottom:88px;right:18px;z-index:7600;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:none;">
+
+    <!-- Speed-dial items (hidden by default) -->
+    <div id="fab-items" style="display:flex;flex-direction:column;align-items:flex-end;gap:10px;opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .22s ease,transform .22s ease;">
+
+      <!-- Restore from server -->
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="background:rgba(15,23,42,.92);color:#e2e8f0;font-size:.75rem;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);">Restore from Server</span>
+        <button onclick="fabRestore()" style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#4f46e5);border:none;box-shadow:0 3px 12px rgba(124,58,237,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+        </button>
+      </div>
+
+      <!-- Download local data -->
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="background:rgba(15,23,42,.92);color:#e2e8f0;font-size:.75rem;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);">Download My Data</span>
+        <button onclick="fabDownload()" style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#0d9488,#059669);border:none;box-shadow:0 3px 12px rgba(13,148,136,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </button>
+      </div>
+
+      <!-- Sync / Upload -->
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="background:rgba(15,23,42,.92);color:#e2e8f0;font-size:.75rem;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);">Sync to Server</span>
+        <button onclick="fabSync()" style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#1d4ed8);border:none;box-shadow:0 3px 12px rgba(37,99,235,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        </button>
+      </div>
+
+      <!-- Save Progress -->
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="background:rgba(15,23,42,.92);color:#e2e8f0;font-size:.75rem;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);">Save Progress</span>
+        <button onclick="fabSave()" style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#15803d);border:none;box-shadow:0 3px 12px rgba(22,163,74,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        </button>
+      </div>
+
+      <!-- Saved Records -->
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="background:rgba(15,23,42,.92);color:#e2e8f0;font-size:.75rem;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);">Saved Records</span>
+        <button onclick="fabRecords()" style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#b45309,#d97706);border:none;box-shadow:0 3px 12px rgba(180,83,9,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        </button>
+      </div>
+
+      <!-- New Interview -->
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="background:rgba(15,23,42,.92);color:#e2e8f0;font-size:.75rem;font-weight:700;padding:5px 11px;border-radius:20px;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.4);">New Interview</span>
+        <button onclick="fabNewInterview()" style="width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#0891b2,#0e7490);border:none;box-shadow:0 3px 12px rgba(8,145,178,.5);cursor:pointer;display:flex;align-items:center;justify-content:center;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+      </div>
+
+    </div><!-- /fab-items -->
+
+    <!-- Main FAB toggle button -->
+    <button id="survey-fab-btn" onclick="toggleFab()" style="width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#1e5c38,#27764a);border:none;box-shadow:0 4px 16px rgba(30,92,56,.55);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .22s ease;pointer-events:auto;">
+      <svg id="fab-icon-plus" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <svg id="fab-icon-close" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" style="display:none;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+
+  </div><!-- /survey-fab-wrap -->
+
+  <!-- ── RESTORE FROM SERVER MODAL ── -->
+  <div id="fab-restore-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;">
+    <div style="background:linear-gradient(170deg,#0b1e14,#071018);border:1px solid rgba(255,255,255,.08);border-radius:24px 24px 0 0;width:100%;max-width:480px;padding:22px 22px calc(28px + env(safe-area-inset-bottom));max-height:85vh;overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <span style="color:#fff;font-size:.98rem;font-weight:800;">⬇️ Restore from Server</span>
+        <button onclick="closeFabRestore()" style="background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.6);border-radius:99px;width:30px;height:30px;cursor:pointer;font-size:.85rem;">✕</button>
+      </div>
+      <p style="color:rgba(255,255,255,.55);font-size:.78rem;line-height:1.6;margin-bottom:18px;">Fetch your submitted records from the server — load one back into the form to review or edit, or to transfer to a new phone/account.</p>
+      <div id="fab-restore-list" style="display:flex;flex-direction:column;gap:8px;">
+        <div style="text-align:center;padding:22px;color:rgba(255,255,255,.3);font-size:.8rem;">Tap "Load" to fetch your records…</div>
+      </div>
+      <button onclick="fabLoadServerRecords()" id="fab-restore-load-btn" style="width:100%;margin-top:14px;padding:13px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:7px;vertical-align:middle;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg> Load My Records from Server
+      </button>
+    </div>
+  </div>
+
 </div><!-- /#survey-wrap -->
 
-<div class="ov" id="ov" onclick="closeDrw()"></div>
-<div class="drawer" id="drawer">
-  <div class="drw-handle"></div>
-  <div class="drw-head"><span class="drw-title">Saved Records</span><button class="drw-close" onclick="closeDrw()">✕</button></div>
-  <div class="drw-scroll" id="drwList"></div>
-  <button class="drw-new" onclick="newRec();closeDrw();">＋ Start New Interview</button>
+<!-- ══ SAVED RECORDS DRAWER — fully self-contained, no mss-styles.css dependency ══ -->
+<div id="ov"
+  onclick="closeDrw()"
+  style="display:none;position:fixed;inset:0;z-index:8100;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);">
+</div>
+
+<div id="drawer"
+  style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:8200;
+         max-width:480px;margin:0 auto;
+         background:linear-gradient(170deg,#0b1e14,#071018);
+         border:1px solid rgba(255,255,255,.08);
+         border-radius:24px 24px 0 0;
+         flex-direction:column;
+         max-height:82vh;
+         box-shadow:0 -8px 40px rgba(0,0,0,.5);
+         font-family:inherit;
+         padding-bottom:env(safe-area-inset-bottom,0px);">
+
+  <!-- drag handle -->
+  <div style="width:40px;height:4px;border-radius:99px;background:rgba(255,255,255,.18);margin:12px auto 0;flex-shrink:0;"></div>
+
+  <!-- header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px 12px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#b45309,#d97706);display:flex;align-items:center;justify-content:center;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </div>
+      <span style="color:#fff;font-size:.98rem;font-weight:800;">Saved Records</span>
+      <span id="drw-count" style="font-size:.68rem;color:rgba(255,255,255,.4);background:rgba(255,255,255,.08);padding:2px 8px;border-radius:99px;font-weight:600;"></span>
+    </div>
+    <button onclick="closeDrw()"
+      style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:.85rem;display:flex;align-items:center;justify-content:center;">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+
+  <!-- scrollable list -->
+  <div id="drwList"
+    style="flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch;">
+  </div>
+
+  <!-- new interview button -->
+  <div style="padding:12px 16px;border-top:1px solid rgba(255,255,255,.07);flex-shrink:0;">
+    <button onclick="newRec();closeDrw();"
+      style="width:100%;padding:13px;background:linear-gradient(135deg,#0891b2,#0e7490);color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Start New Interview
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════ -->
+<!--  MY REPORTS PANEL                                   -->
+<!-- ═══════════════════════════════════════════════════ -->
+<div id="my-reports-panel" style="display:none;position:fixed;inset:0;z-index:8000;background:#0d1117;flex-direction:column;font-family:inherit;">
+
+  <!-- Header -->
+  <div style="display:flex;align-items:center;gap:12px;padding:16px 18px 14px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0;">
+    <button onclick="closeMyReportsPanel()" style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.08);border:none;color:#fff;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">←</button>
+    <div style="flex:1;">
+      <div style="color:#fff;font-size:1rem;font-weight:800;">My Reports</div>
+      <div style="color:rgba(255,255,255,.35);font-size:.65rem;" id="mrp-subtitle">Loading…</div>
+    </div>
+  </div>
+
+  <!-- List -->
+  <div id="mrp-list" style="flex:1;overflow-y:auto;padding:14px 14px 30px;display:flex;flex-direction:column;gap:10px;">
+    <!-- cards injected by JS -->
+  </div>
+
 </div>
 
 <div class="modal-ov" id="finModal">
@@ -423,9 +577,8 @@
   </div>
 </div>
 
-
 <!-- In-page report overlay — uses iframe to preserve all report styles -->
-<div id="report-overlay" style="display:none;">
+<div id="report-overlay" style="display:none;position:fixed;inset:0;z-index:9000;background:var(--bg-base,#fff);flex-direction:column;">
   <div id="report-toolbar">
     <span id="report-title">Report</span>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
@@ -444,10 +597,13 @@
     border-top:1px solid rgba(37,99,235,.1);
     display:flex;flex-direction:column;gap:10px;
   ">
-    <div style="text-align:center;font-size:.78rem;color:#7c9cbf;font-weight:600;margin-bottom:2px;">What would you like to do next?</div>
-    <button onclick="startNewSurveyFromReport()" style="width:100%;padding:13px;background:linear-gradient(135deg,#1a5c35,#1a4060);color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-      ➕ Start New Survey
-    </button>
+    <div style="text-align:center;font-size:.78rem;color:#7c9cbf;font-weight:600;margin-bottom:2px;">What would you like to do next?</div><button onclick="startNewSurveyFromReport ? startNewSurveyFromReport() : (closeReportOverlay && closeReportOverlay(), newRec && newRec())" style="width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:12px;font-family:inherit;font-size:.95rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+  ➕ Start New Survey
+</button>
+
+<button id="profileBtn" onclick="openProfilePage()" style="width:100%;padding:12px;background:rgba(255,255,255,.08);color:white;border:1px solid rgba(255,255,255,.15);border-radius:10px;font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;margin-top:10px;">
+  Profile
+</button>
     <button onclick="goHomeFromReport()" style="width:100%;padding:12px;background:rgba(255,255,255,.06);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.12);border-radius:10px;font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer;">
       🏠 Return to Home
     </button>
@@ -455,12 +611,9 @@
 
 </div>
 
-
 <!-- PREMIUM MODAL -->
 
 <div class="toast" id="toast"></div>
-
-
 
 <!-- PWA INSTALL BANNER — shows on HTTPS/Chrome when installable -->
 <div id="pwa-banner" style="display:none;position:fixed;top:56px;left:0;right:0;z-index:190;background:linear-gradient(135deg,#1a4060,#1e3a7e);color:#fff;padding:10px 14px;align-items:center;justify-content:space-between;gap:10px;font-size:0.82rem;font-weight:600;box-shadow:0 2px 8px rgba(0,0,0,.25);">
@@ -569,31 +722,31 @@
 
 <!-- Sync is automatic — no modal needed for students -->
 
-
-
 <!-- ═══════════════════════════════════════════════════ -->
 <!--  SYNC ENGINE                                        -->
 <!-- ═══════════════════════════════════════════════════ -->
 
-
 <!-- ── Sync Modal (force sync details) ── -->
-<div id="syncModal" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.5);align-items:flex-end;justify-content:center;">
-  <div style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:24px 20px calc(24px + env(safe-area-inset-bottom))">
+<div id="syncModal" style="display:none;position:fixed;inset:0;z-index:9200;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;">
+  <div style="background:linear-gradient(170deg,#0b1e14,#071018);border:1px solid rgba(255,255,255,.08);width:100%;max-width:480px;border-radius:24px 24px 0 0;padding:26px 22px calc(28px + env(safe-area-inset-bottom))">
     <div style="text-align:center;margin-bottom:18px">
-      <div style="font-size:36px;margin-bottom:7px">☁️</div>
-      <div style="font-size:1.05rem;font-weight:800;color:#2563eb;margin-bottom:4px">Sync Records</div>
-      <div style="font-size:0.78rem;color:#7c9cbf;line-height:1.5" id="syncModalStatus">Checking records…</div>
+      <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#0d9488);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      </div>
+      <div style="font-size:1.05rem;font-weight:800;color:#e2e8f0;margin-bottom:4px">Sync Records</div>
+      <div style="font-size:0.78rem;color:rgba(255,255,255,.45);line-height:1.5" id="syncModalStatus">Checking records…</div>
     </div>
-    <div style="background:var(--bg-base);border-radius:10px;padding:13px 15px;margin-bottom:14px;font-size:0.8rem;color:#1a2535;line-height:1.7" id="syncModalInfo">—</div>
+    <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:13px 15px;margin-bottom:14px;font-size:0.8rem;color:rgba(255,255,255,.7);line-height:1.8" id="syncModalInfo">—</div>
     <div style="display:flex;flex-direction:column;gap:9px">
-      <button onclick="closeSyncModal();syncAll();" style="padding:13px;background:linear-gradient(135deg,#2563eb,#0d9488);color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:0.92rem;font-weight:700;cursor:pointer">
-        ☁ Sync Unsynced Records
+      <button onclick="closeSyncModal();syncAll();" style="padding:13px;background:linear-gradient(135deg,#2563eb,#0d9488);color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:0.92rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        Sync Unsynced Records
       </button>
-      <button onclick="closeSyncModal();forceSyncAll();" style="padding:13px;background:linear-gradient(135deg,#1a4060,#1e3a7e);color:#fff;border:none;border-radius:10px;font-family:inherit;font-size:0.92rem;font-weight:700;cursor:pointer">
-        🔄 Force Push ALL Records
-        <span style="display:block;font-size:0.7rem;font-weight:400;opacity:.75;margin-top:1px">Re-uploads everything — use if admin is missing data</span>
+      <button onclick="closeSyncModal();forceSyncAll();" style="padding:13px;background:linear-gradient(135deg,#1a4060,#1e3a7e);color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:0.92rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:9px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+        <span>Force Push ALL Records<span style="display:block;font-size:0.7rem;font-weight:400;opacity:.75;margin-top:1px">Re-uploads everything — use if admin is missing data</span></span>
       </button>
-      <button onclick="closeSyncModal()" style="padding:13px;background:var(--bg-base);color:#5d7a8a;border:1.5px solid #dde8f0;border-radius:10px;font-family:inherit;font-size:0.88rem;font-weight:600;cursor:pointer">Cancel</button>
+      <button onclick="closeSyncModal()" style="padding:13px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.6);border:1.5px solid rgba(255,255,255,.12);border-radius:12px;font-family:inherit;font-size:0.88rem;font-weight:600;cursor:pointer">Cancel</button>
     </div>
   </div>
 </div>
@@ -787,7 +940,6 @@
   </div>
 </div>
 
-
 <!-- Admin Survey Lock Overlay -->
 <div id="admin-survey-lock" style="display:none;">
   <div class="asl-icon">🔒</div>
@@ -795,7 +947,6 @@
   <div class="asl-sub">You are logged in as Administrator. Survey data entry is restricted to registered student interviewers only.</div>
   <button class="asl-btn" onclick="_showAdminSurveyLock(false);goBackHome()">← Back to Home</button>
 </div>
-
 
 <!-- ═══════════════════════════════════════════════════════ -->
 <!--  INFO MODALS: About · Help · Terms                      -->
@@ -990,7 +1141,7 @@
 
       <div class="info-section">
         <div class="info-section-title">Authorised Use</div>
-        <div class="info-section-text">This application is provided for use by registered users and authorised personnel of participating institutions for the purpose of community health situation analysis fieldwork. Use of the app for any other purpose is not permitted.</div>
+        <div class="info-section-text">This application is provided for use by registered users and authorised personnel of participating for the purpose of community health situation analysis fieldwork. Use of the app for any other purpose is not permitted.</div>
       </div>
 
       <div class="info-section">
@@ -1044,100 +1195,118 @@ function closeModal(id){
 }
 </script>
 
-
-
 <!-- ══════════════════════════════════════════
      STUDENT SETTINGS MODAL
 ════════════════════════════════════════════ -->
 <div id="student-settings-modal" style="display:none;position:fixed;inset:0;z-index:8800;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);align-items:flex-end;justify-content:center;">
   <div style="background:linear-gradient(170deg,#0b1e14 0%,#071018 100%);border:1px solid rgba(255,255,255,.08);border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;padding:0 0 calc(24px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;">
+
     <!-- Header -->
     <div style="position:sticky;top:0;background:linear-gradient(170deg,#0b1e14,#071018);padding:20px 22px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.07);z-index:2;">
-      <span style="color:#fff;font-size:1rem;font-weight:800;">⚙️ Settings &amp; Tools</span>
-      <button onclick="closeStudentSettings()" style="background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.6);border-radius:99px;width:30px;height:30px;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span style="color:#fff;font-size:1rem;font-weight:800;">Settings &amp; Tools</span>
+      </div>
+      <button onclick="closeStudentSettings()" style="background:rgba(255,255,255,.1);border:none;color:rgba(255,255,255,.6);border-radius:99px;width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
+
     <div style="padding:18px 22px;display:flex;flex-direction:column;gap:10px;">
 
+      <!-- Section label -->
+      <div style="color:rgba(255,255,255,.3);font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;padding:2px 0 2px;">Appearance</div>
+
       <!-- Theme toggle -->
-      <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="if(typeof toggleDark==='function')toggleDark();else if(window.PremiumUX)window.PremiumUX.toggleDark();">
-        <div style="display:flex;align-items:center;gap:12px;">
-          <span style="font-size:1.4rem;" id="ss-theme-icon">🌙</span>
-          <div>
+      <div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:12px;" onclick="if(typeof toggleDark==='function')toggleDark();else if(window.PremiumUX)window.PremiumUX.toggleDark();">
+        <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+          <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:rgba(99,102,241,.15);border:1px solid rgba(99,102,241,.25);display:flex;align-items:center;justify-content:center;">
+            <svg id="ss-theme-svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </div>
+          <div style="min-width:0;">
             <div style="color:#fff;font-size:.88rem;font-weight:700;" id="ss-theme-label">Dark Mode</div>
-            <div style="color:rgba(255,255,255,.4);font-size:.68rem;margin-top:1px;">WhatsApp-style dark / light</div>
+            <div style="color:rgba(255,255,255,.4);font-size:.68rem;margin-top:1px;">Switch between dark and light theme</div>
           </div>
         </div>
-        <div id="ss-theme-toggle" style="width:44px;height:24px;border-radius:12px;background:rgba(37,99,235,.5);border:2px solid rgba(37,99,235,.8);position:relative;transition:background .2s;">
+        <div id="ss-theme-toggle" style="flex-shrink:0;width:44px;height:24px;border-radius:12px;background:rgba(37,99,235,.5);border:2px solid rgba(37,99,235,.8);position:relative;transition:background .2s;">
           <div id="ss-theme-knob" style="position:absolute;top:1px;left:1px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;transform:translateX(20px);box-shadow:0 1px 4px rgba(0,0,0,.3);"></div>
         </div>
       </div>
 
-      <!-- Records drawer -->
-      <button onclick="closeStudentSettings();openDrawer();" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;text-align:left;">
-        <span style="font-size:1.4rem;">☰</span>
-        <div>
-          <div style="color:#fff;font-size:.88rem;font-weight:700;">Saved Records</div>
-          <div style="color:rgba(255,255,255,.4);font-size:.68rem;margin-top:1px;">Browse &amp; manage all interviews</div>
+      <!-- Section label -->
+      <div style="color:rgba(255,255,255,.3);font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;padding:6px 0 2px;">Data &amp; Storage</div>
+
+      <!-- Clear empty records -->
+      <button onclick="var n=typeof clearGhostRecords==='function'?clearGhostRecords():0;showToast(n>0?'Removed '+n+' empty record'+(n===1?'':'s')+' — all clear':'All records are valid — nothing removed');" style="background:rgba(251,191,36,.05);border:1px solid rgba(251,191,36,.15);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;text-align:left;width:100%;">
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
         </div>
-        <div style="margin-left:auto;color:rgba(255,255,255,.2);font-size:1.1rem;">›</div>
+        <div style="min-width:0;flex:1;">
+          <div style="color:#fbbf24;font-size:.88rem;font-weight:700;">Clear Empty Records</div>
+          <div style="color:rgba(251,191,36,.45);font-size:.68rem;margin-top:1px;">Removes blank records that were never filled in</div>
+        </div>
+        <svg style="flex-shrink:0;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
+
+      <!-- Section label -->
+      <div style="color:rgba(255,255,255,.3);font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;padding:6px 0 2px;">General</div>
 
       <!-- Install app -->
-      <button onclick="closeStudentSettings();showInstallGuide();" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;text-align:left;">
-        <span style="font-size:1.4rem;">📲</span>
-        <div>
-          <div style="color:#fff;font-size:.88rem;font-weight:700;">Install App</div>
-          <div style="color:rgba(255,255,255,.4);font-size:.68rem;margin-top:1px;">Add to home screen · Works offline</div>
+      <button onclick="closeStudentSettings();showInstallGuide();" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;text-align:left;width:100%;">
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.2);display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18" stroke-width="3"/><polyline points="8 12 12 16 16 12"/><line x1="12" y1="8" x2="12" y2="16"/></svg>
         </div>
-        <div style="margin-left:auto;color:rgba(255,255,255,.2);font-size:1.1rem;">›</div>
-      </button>
-
-      <!-- Sync data -->
-      <button onclick="closeStudentSettings();openSyncModal();" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;text-align:left;">
-        <span style="font-size:1.4rem;">☁️</span>
-        <div>
-          <div style="color:#fff;font-size:.88rem;font-weight:700;">Sync / Upload Data</div>
-          <div style="color:rgba(255,255,255,.4);font-size:.68rem;margin-top:1px;">Push records to server</div>
+        <div style="min-width:0;flex:1;">
+          <div style="color:#fff;font-size:.88rem;font-weight:700;">Install App on Device</div>
+          <div style="color:rgba(255,255,255,.4);font-size:.68rem;margin-top:1px;">Add to home screen — works fully offline</div>
         </div>
-        <div style="margin-left:auto;color:rgba(255,255,255,.2);font-size:1.1rem;">›</div>
+        <svg style="flex-shrink:0;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
 
       <!-- About -->
-      <button onclick="closeStudentSettings();showModal('about-modal');" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;text-align:left;">
-        <span style="font-size:1.4rem;">🏥</span>
-        <div>
-          <div style="color:#fff;font-size:.88rem;font-weight:700;">About This App</div>
-          <div style="color:rgba(255,255,255,.4);font-size:.68rem;margin-top:1px;">Version, developer info</div>
+      <button onclick="closeStudentSettings();showModal('about-modal');" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;text-align:left;width:100%;">
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16" stroke-width="3"/></svg>
         </div>
-        <div style="margin-left:auto;color:rgba(255,255,255,.2);font-size:1.1rem;">›</div>
+        <div style="min-width:0;flex:1;">
+          <div style="color:#fff;font-size:.88rem;font-weight:700;">About This App</div>
+          <div style="color:rgba(255,255,255,.4);font-size:.68rem;margin-top:1px;">Version info and developer details</div>
+        </div>
+        <svg style="flex-shrink:0;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
 
       <!-- Help -->
-      <button onclick="closeStudentSettings();showModal('help-modal');" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;text-align:left;">
-        <span style="font-size:1.4rem;">🆘</span>
-        <div>
-          <div style="color:#fff;font-size:.88rem;font-weight:700;">Help &amp; Contact</div>
-          <div style="color:rgba(255,255,255,.4);font-size:.68rem;margin-top:1px;">Troubleshooting, get support</div>
+      <button onclick="closeStudentSettings();showModal('help-modal');" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;text-align:left;width:100%;">
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.2);display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17" stroke-width="3"/></svg>
         </div>
-        <div style="margin-left:auto;color:rgba(255,255,255,.2);font-size:1.1rem;">›</div>
+        <div style="min-width:0;flex:1;">
+          <div style="color:#fff;font-size:.88rem;font-weight:700;">Help &amp; Support</div>
+          <div style="color:rgba(255,255,255,.4);font-size:.68rem;margin-top:1px;">Troubleshooting guides and contact</div>
+        </div>
+        <svg style="flex-shrink:0;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
 
       <!-- Terms -->
-      <button onclick="closeStudentSettings();showModal('terms-modal');" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;text-align:left;">
-        <span style="font-size:1.4rem;">📜</span>
-        <div>
-          <div style="color:#fff;font-size:.88rem;font-weight:700;">Terms &amp; Conditions</div>
-          <div style="color:rgba(255,255,255,.4);font-size:.68rem;margin-top:1px;">Usage policy</div>
+      <button onclick="closeStudentSettings();showModal('terms-modal');" style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;text-align:left;width:100%;">
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:rgba(148,163,184,.1);border:1px solid rgba(148,163,184,.15);display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
         </div>
-        <div style="margin-left:auto;color:rgba(255,255,255,.2);font-size:1.1rem;">›</div>
+        <div style="min-width:0;flex:1;">
+          <div style="color:#fff;font-size:.88rem;font-weight:700;">Terms &amp; Conditions</div>
+          <div style="color:rgba(255,255,255,.4);font-size:.68rem;margin-top:1px;">App usage policy</div>
+        </div>
+        <svg style="flex-shrink:0;" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.2)" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
 
       <!-- Sign out -->
-      <button onclick="closeStudentSettings();authSignOut();" style="background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;text-align:left;margin-top:4px;">
-        <span style="font-size:1.4rem;">⏻</span>
-        <div>
+      <button onclick="closeStudentSettings();authSignOut();" style="background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.18);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;font-family:inherit;text-align:left;width:100%;margin-top:4px;">
+        <div style="flex-shrink:0;width:36px;height:36px;border-radius:10px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.2);display:flex;align-items:center;justify-content:center;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </div>
+        <div style="min-width:0;flex:1;">
           <div style="color:#f87171;font-size:.88rem;font-weight:700;">Sign Out</div>
-          <div style="color:rgba(248,113,113,.4);font-size:.68rem;margin-top:1px;">Local data stays on this device</div>
+          <div style="color:rgba(248,113,113,.4);font-size:.68rem;margin-top:1px;">Your saved data stays on this device</div>
         </div>
       </button>
 
@@ -1186,6 +1355,36 @@ function _syncSettingsThemeUI(){
 var _ssThemeObserver = new MutationObserver(_syncSettingsThemeUI);
 _ssThemeObserver.observe(document.documentElement, {attributes:true, attributeFilter:['data-theme']});
 
+/* ── Sync modal inline fallback (survey-sync.js overrides if loaded) ── */
+function openSyncModal(){
+  var m = document.getElementById('syncModal');
+  if(!m) return;
+  // Populate info before showing
+  try {
+    var store = JSON.parse(localStorage.getItem('chsa4')||'{}');
+    // Only count records with real content — exclude blank ghost records
+    var ids = Object.keys(store).filter(function(k){
+      if(k.startsWith('_')) return false;
+      var r = store[k] || {};
+      return r._finished || r._synced || r.a_age || r.interview_location || r.interview_date;
+    });
+    var synced = ids.filter(function(k){ return store[k]._synced; }).length;
+    var unsynced = ids.filter(function(k){ return store[k]._finished && !store[k]._synced; }).length;
+    var draft = ids.filter(function(k){ return !store[k]._finished; }).length;
+    document.getElementById('syncModalStatus').textContent = ids.length + ' total record(s)';
+    document.getElementById('syncModalInfo').innerHTML =
+      '<strong>' + ids.length + '</strong> total record(s)<br>'
+      + '<span style="color:#4ade80;font-weight:600">✓ ' + synced + ' uploaded</span><br>'
+      + '<span style="color:' + (unsynced > 0 ? '#f59e0b' : '#4ade80') + ';font-weight:600">'
+      + (unsynced > 0 ? unsynced + ' not uploaded — tap Sync' : '✓ All uploaded') + '</span>';
+  } catch(e) {}
+  m.style.display = 'flex';
+}
+function closeSyncModal(){
+  var m = document.getElementById('syncModal');
+  if(m) m.style.display = 'none';
+}
+
 /* ── Online/offline dot in survey topbar ── */
 function _updateSurveyConnDot(){
   var dot = document.getElementById('survey-conn-dot');
@@ -1194,7 +1393,7 @@ function _updateSurveyConnDot(){
   var online = navigator.onLine;
   dot.style.background = online ? '#4ade80' : '#f87171';
   dot.style.boxShadow = online ? '0 0 6px rgba(74,222,128,.6)' : '0 0 6px rgba(248,113,113,.5)';
-  if(lbl) lbl.textContent = online ? 'ONLINE' : 'OFFLINE';
+  if(lbl) { lbl.textContent = online ? 'ONLINE' : 'OFFLINE'; lbl.style.color = online ? '#4ade80' : '#f87171'; }
   if(online) dot.classList.remove('offline'); else dot.classList.add('offline');
   // Show/hide the offline bar
   var ob = document.getElementById('offline-bar');
@@ -1268,15 +1467,1114 @@ document.addEventListener('DOMContentLoaded', function(){
 });
 </script>
 
-<script src="./survey-sync.js?v=5.1"></script>
-<script src="./survey-core.js?v=5.1"></script>
-<script src="./survey-reports.js?v=5.1"></script>
-<script src="./survey-auth.js?v=5.1"></script>
-<script src="./survey-admin.js?v=5.1"></script>
+<script>
+/* ══════════════════════════════════════════════════════
+   SURVEY FAB — Floating Action Button
+   Buttons: Restore | Download | Sync | Records
+   ══════════════════════════════════════════════════════ */
+
+let _fabOpen = false;
+
+function toggleFab() {
+  _fabOpen = !_fabOpen;
+  const items   = document.getElementById('fab-items');
+  const btnEl   = document.getElementById('survey-fab-btn');
+  const iconPls = document.getElementById('fab-icon-plus');
+  const iconX   = document.getElementById('fab-icon-close');
+  if (_fabOpen) {
+    items.style.opacity = '1';
+    items.style.pointerEvents = 'auto';
+    items.style.transform = 'translateY(0)';
+    btnEl.style.transform = 'rotate(45deg)';
+    iconPls.style.display = 'none';
+    iconX.style.display   = '';
+  } else {
+    items.style.opacity = '0';
+    items.style.pointerEvents = 'none';
+    items.style.transform = 'translateY(10px)';
+    btnEl.style.transform = '';
+    iconPls.style.display = '';
+    iconX.style.display   = 'none';
+  }
+}
+
+function _closeFab() { if (_fabOpen) toggleFab(); }
+
+/* ── Sync ── */
+function fabSync() {
+  _closeFab();
+  if (typeof openSyncModal === 'function') openSyncModal();
+  else if (typeof syncAll === 'function') syncAll();
+}
+
+/* ── Save Progress ── */
+function fabSave() {
+  _closeFab();
+  var saved = false;
+  try {
+    if (typeof saveCur === 'function') { saveCur(); saved = true; }
+    if (typeof renDrw === 'function') renDrw();
+  } catch(e) { console.warn('[fabSave]', e); }
+
+  // Show a visible confirmation modal so it's clear something happened
+  var modal = document.getElementById('fab-save-confirm-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'fab-save-confirm-modal';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;';
+    modal.innerHTML = [
+      '<div style="background:linear-gradient(170deg,#0b1e14,#071018);border:1px solid rgba(255,255,255,.08);border-radius:24px 24px 0 0;width:100%;max-width:480px;padding:28px 24px calc(32px + env(safe-area-inset-bottom));text-align:center;">',
+        '<div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#15803d);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></div>',
+        '<div style="color:#4ade80;font-size:1.05rem;font-weight:800;margin-bottom:6px;">Progress Saved!</div>',
+        '<div style="color:rgba(255,255,255,.5);font-size:.82rem;line-height:1.6;margin-bottom:20px;">Your current interview has been saved to this device. You can resume it anytime from <strong style="color:rgba(255,255,255,.8);">Saved Records</strong>.</div>',
+        '<div style="display:flex;gap:10px;">',
+          '<button onclick="document.getElementById(\'fab-save-confirm-modal\').style.display=\'none\'" ',
+            'style="flex:1;padding:13px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:12px;font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;">',
+            'Close',
+          '</button>',
+          '<button onclick="document.getElementById(\'fab-save-confirm-modal\').style.display=\'none\';if(typeof openDrawer===\'function\')openDrawer();else if(typeof openDrw===\'function\')openDrw();" ',
+            'style="flex:1;padding:13px;background:linear-gradient(135deg,#16a34a,#15803d);border:none;color:#fff;border-radius:12px;font-family:inherit;font-size:.9rem;font-weight:700;cursor:pointer;">',
+            'View Records',
+          '</button>',
+        '</div>',
+      '</div>'
+    ].join('');
+    document.body.appendChild(modal);
+    modal.addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
+  }
+  modal.style.display = 'flex';
+}
+
+/* ── Saved Records ── */
+function fabRecords() {
+  _closeFab();
+  // Refresh drawer contents first
+  if (typeof renDrw === 'function') renDrw();
+  // openDrawer() is defined in survey-core.js — use it if available
+  if (typeof openDrawer === 'function') { openDrawer(); return; }
+  // Hard fallback: force both class AND inline style so CSS is not needed
+  var drw = document.getElementById('drawer');
+  var ov  = document.getElementById('ov');
+  if (drw) {
+    drw.classList.add('open');
+    drw.style.display = 'flex';
+    drw.style.flexDirection = 'column';
+    drw.style.transform = 'translateY(0)';
+    drw.style.opacity = '1';
+    drw.style.pointerEvents = 'auto';
+    if (ov) {
+      ov.classList.add('open');
+      ov.style.display = 'block';
+      ov.style.opacity = '1';
+    }
+    return;
+  }
+  if (typeof showToast === 'function') showToast('No saved records panel found', true);
+}
+
+/* ── New Interview ── */
+function fabNewInterview() {
+  _closeFab();
+  var modal = document.getElementById('fab-new-interview-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'fab-new-interview-modal';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;z-index:9100;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);align-items:flex-end;justify-content:center;';
+    modal.innerHTML = [
+      '<div style="background:linear-gradient(170deg,#071018,#0b1e14);border:1px solid rgba(255,255,255,.08);border-radius:24px 24px 0 0;width:100%;max-width:480px;padding:28px 24px calc(32px + env(safe-area-inset-bottom));">',
+        '<div style="text-align:center;margin-bottom:20px;">',
+          '<div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#0891b2,#0e7490);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>',
+          '<div style="color:#fff;font-size:1.05rem;font-weight:800;margin-bottom:6px;">Start New Interview?</div>',
+          '<div style="color:rgba(255,255,255,.5);font-size:.82rem;line-height:1.6;">',
+            'This will open a <strong style="color:rgba(255,255,255,.8);">blank, clean form</strong> with no previous data. ',
+            'Make sure your current interview is saved first.',
+          '</div>',
+        '</div>',
+        '<div style="background:rgba(255,165,0,.08);border:1px solid rgba(255,165,0,.2);border-radius:12px;padding:11px 14px;margin-bottom:18px;color:rgba(255,200,80,.85);font-size:.78rem;line-height:1.6;">',
+          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,200,80,.9)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:5px;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><strong>Unsaved data will be lost.</strong> Tap Save Progress first if you need to keep the current interview.',
+        '</div>',
+        '<div style="display:flex;gap:10px;">',
+          '<button onclick="document.getElementById(\'fab-new-interview-modal\').style.display=\'none\'" ',
+            'style="flex:1;padding:13px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#fff;border-radius:12px;font-family:inherit;font-size:.9rem;font-weight:600;cursor:pointer;">',
+            'Cancel',
+          '</button>',
+          '<button onclick="_fabDoNewInterview()" ',
+            'style="flex:1;padding:13px;background:linear-gradient(135deg,#0891b2,#0e7490);border:none;color:#fff;border-radius:12px;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;">',
+            'New Interview',
+          '</button>',
+        '</div>',
+      '</div>'
+    ].join('');
+    document.body.appendChild(modal);
+    modal.addEventListener('click', function(e){ if(e.target===this) this.style.display='none'; });
+  }
+  modal.style.display = 'flex';
+}
+
+function _fabDoNewInterview() {
+  var modal = document.getElementById('fab-new-interview-modal');
+  if (modal) modal.style.display = 'none';
+  try {
+    // Clear ALL form fields
+    document.querySelectorAll('.sec-card input,.sec-card select,.sec-card textarea').forEach(function(el) {
+      if (!el.name) return;
+      if (el.type === 'radio' || el.type === 'checkbox') el.checked = false;
+      else el.value = '';
+    });
+    // Clear chip visual states
+    document.querySelectorAll('.chip').forEach(function(c) {
+      c.setAttribute('data-checked','false');
+      c.classList.remove('sel','selected','active');
+    });
+    // Call newRec (patched version handles cache clearing + fresh recId)
+    if (typeof newRec === 'function') {
+      newRec();
+    } else {
+      // Last-resort: generate fresh recId manually and reset
+      if (typeof generateRecordId === 'function') window.recId = generateRecordId();
+      if (typeof pRec === 'function') pRec({});
+    }
+    // Navigate to section 0
+    if (typeof goSec === 'function') goSec(0);
+    else if (typeof showSec === 'function') showSec(1);
+    // Make survey visible
+    var sw = document.getElementById('survey-wrap');
+    if (sw && (sw.style.display === 'none' || !sw.style.display)) {
+      sw.style.display = '';
+    }
+    if (typeof showToast === 'function') showToast('✅ New interview started — all fields cleared');
+  } catch(e) {
+    console.warn('[fabNewInterview]', e);
+    if (typeof showToast === 'function') showToast('Error: ' + e.message, true);
+  }
+}
+
+/* ── Download local data as JSON ── */
+function fabDownload() {
+  _closeFab();
+  try {
+    const local = JSON.parse(localStorage.getItem('chsa4') || '{}');
+    const records = Object.values(local);
+    if (!records.length) { showToast('No local records to download', true); return; }
+    const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    const name = (localStorage.getItem('chsa_user_name') || 'interviewer').replace(/\s+/g,'_');
+    a.download = 'MSS_data_' + name + '_' + new Date().toISOString().slice(0,10) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('✅ Data downloaded as JSON');
+  } catch(e) { showToast('Download failed: ' + e.message, true); }
+}
+
+/* ── Restore from server ── */
+function fabRestore() {
+  _closeFab();
+  const modal = document.getElementById('fab-restore-modal');
+  if (modal) modal.style.display = 'flex';
+}
+function closeFabRestore() {
+  const modal = document.getElementById('fab-restore-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function fabLoadServerRecords() {
+  const btn  = document.getElementById('fab-restore-load-btn');
+  const list = document.getElementById('fab-restore-list');
+  if (btn) { btn.textContent = '⏳ Loading…'; btn.disabled = true; }
+  try {
+    // Full token lookup — mirrors Auth.getToken() in api-client.js (4 fallbacks)
+    const token = localStorage.getItem('hs_jwt_token')
+      || sessionStorage.getItem('hs_jwt_token')
+      || (function(){ try { return JSON.parse(localStorage.getItem('chsa_session') || '{}').token || ''; } catch(e){ return ''; } })()
+      || (function(){ try { return JSON.parse(localStorage.getItem('chsa_auth')    || '{}').token || ''; } catch(e){ return ''; } })()
+      || '';
+    if (!token) {
+      list.innerHTML = '<div style="color:#f87171;font-size:.8rem;text-align:center;padding:16px;">Not logged in. Please sign in first.</div>';
+      return;
+    }
+    const apiBase = window.HS_API_BASE || '';
+    // Use the interviewer endpoint — /api/admin/records is admin-only and returns 403 for regular users
+    const res = await fetch(apiBase + '/api/survey/mine', {
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error('Server returned ' + res.status);
+    const data = await res.json();
+    const records = data.records || [];
+    if (!records.length) {
+      list.innerHTML = '<div style="color:rgba(255,255,255,.35);font-size:.8rem;text-align:center;padding:16px;">No records found on server for your account.</div>';
+      return;
+    }
+    window._fabRestoreRecords = records;
+    list.innerHTML = records.map(function(r, i) {
+      const raw   = (function(){ try { return typeof r.raw_json === 'string' ? JSON.parse(r.raw_json) : (r.raw_json || {}); } catch(e) { return {}; } })();
+      const date  = r.interview_date || raw.interview_date || '—';
+      const loc   = r.location || raw.interview_location || '—';
+      const age   = r.respondent_age || raw.a_age || '—';
+      const gen   = r.respondent_gender || raw.a_gender || '—';
+      const rid   = r.id || r.offline_id || i;
+      // record passed by index via window._fabRestoreRecords
+      return '<div style="background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;">'
+        + '<div>'
+        + '<div style="color:#fff;font-size:.82rem;font-weight:700;">' + loc + ' · ' + date + '</div>'
+        + '<div style="color:rgba(255,255,255,.4);font-size:.7rem;margin-top:2px;">Age ' + age + ' · ' + gen + ' · ID: ' + String(rid).slice(-6) + '</div>'
+        + '</div>'
+        + '<button onclick="fabRestoreRecord(' + i + ')" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:8px;padding:7px 13px;font-family:inherit;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap;">Load into Form</button>'
+        + '</div>';
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="color:#f87171;font-size:.8rem;text-align:center;padding:16px;">Failed to load: ' + e.message + '</div>';
+  } finally {
+    if (btn) { btn.textContent = '☁️ Load My Records from Server'; btn.disabled = false; }
+  }
+}
+
+function fabRestoreRecord(idx) {
+  try {
+    const r   = (window._fabRestoreRecords || [])[idx];
+    if (!r) { showToast('Record not found', true); return; }
+
+    // raw_json has the original form field names (a_age, b_type, g_latrine, etc.)
+    // Always prefer it — DB column names (respondent_age, house_type) won't match form inputs
+    var formData = null;
+    var dataKeys = ['raw_json', 'data', 'record_data', 'form_data', 'payload', 'raw', 'survey_data'];
+    for (var i = 0; i < dataKeys.length; i++) {
+      var v = r[dataKeys[i]];
+      if (v && typeof v === 'object' && !Array.isArray(v)) { formData = v; break; }
+      if (v && typeof v === 'string') {
+        try { var parsed = JSON.parse(v); if (parsed && typeof parsed === 'object') { formData = parsed; break; } } catch(e){}
+      }
+    }
+    // Last resort: use all non-meta DB columns (at least partial restore)
+    if (!formData) {
+      var skip = ['id','created_at','updated_at','synced_at','needs_correction','correction_notes','_synced','record_id','raw_json'];
+      formData = {};
+      Object.keys(r).forEach(function(k){ if (skip.indexOf(k) === -1) formData[k] = r[k]; });
+    }
+
+    // Generate a fresh local record ID so it doesn't clash with the server copy
+    // Generate fresh ID and clear any stale cached record before loading
+    if (typeof generateRecordId === 'function') window.recId = generateRecordId();
+    // Clear the in-memory recs cache for this new ID so no old data bleeds in
+    if (typeof recs !== 'undefined' && window.recId) { recs[window.recId] = {}; }
+    if (typeof pRec === 'function') pRec(formData);
+    if (typeof loadInto === 'function') loadInto(formData);
+
+    closeFabRestore();
+    if (typeof _closeFab === 'function') _closeFab();
+
+    // Show the survey form
+    const sw = document.getElementById('survey-wrap');
+    const ws = document.getElementById('welcome-screen');
+    if (sw) sw.style.display = '';
+    if (ws) ws.style.display = 'none';
+
+    // Navigate to section 0 (consent page) so all fields are visible
+    if (typeof goSec === 'function') goSec(0);
+    else if (typeof showSec === 'function') showSec(1);
+
+    showToast('✅ Record loaded — review and edit any section');
+  } catch(e) { showToast('Failed to load record: ' + e.message, true); }
+}
+
+/* Close FAB when tapping outside */
+document.addEventListener('click', function(e) {
+  if (!_fabOpen) return;
+  const wrap = document.getElementById('survey-fab-wrap');
+  if (wrap && !wrap.contains(e.target)) _closeFab();
+});
+
+/* Show/hide FAB only when survey-wrap is visible */
+document.addEventListener('DOMContentLoaded', function() {
+  const sw  = document.getElementById('survey-wrap');
+  const fab = document.getElementById('survey-fab-wrap');
+  if (!sw || !fab) return;
+  fab.style.display = 'none'; // hidden until survey opens
+  const obs = new MutationObserver(function() {
+    const visible = sw.style.display !== 'none' && sw.style.display !== '';
+    fab.style.display = visible ? 'flex' : 'none';
+    if (!visible && _fabOpen) toggleFab();
+  });
+  obs.observe(sw, { attributes: true, attributeFilter: ['style'] });
+});
+</script>
+
+<script src="./survey-sync.js?v=5.2"></script>
+<script src="./survey-core.js?v=6.2"></script>
+<script>
+/* ── Patch newRec to fix cache bleed-through on new interviews ── */
+(function(){
+  var _originalNewRec = null;
+  function _patchNewRec() {
+    if (typeof newRec !== 'function') { setTimeout(_patchNewRec, 200); return; }
+    if (newRec._patched) return;
+    _originalNewRec = newRec;
+    window.newRec = function() {
+      // Before starting a new record, clear ALL form fields manually
+      // so no previous respondent's data leaks into the new interview
+      document.querySelectorAll('.sec-card input,.sec-card select,.sec-card textarea').forEach(function(el) {
+        if (!el.name) return;
+        if (el.type === 'radio' || el.type === 'checkbox') el.checked = false;
+        else el.value = '';
+      });
+      // Clear chip visual states
+      document.querySelectorAll('.chip').forEach(function(c) {
+        c.setAttribute('data-checked','false');
+      });
+      // Now call original newRec which generates a fresh recId
+      return _originalNewRec.apply(this, arguments);
+    };
+    window.newRec._patched = true;
+  }
+  document.addEventListener('DOMContentLoaded', _patchNewRec);
+  setTimeout(_patchNewRec, 800); // fallback
+})();
+</script>
+<script src="./survey-reports.js?v=5.2"></script>
+<script src="./survey-auth.js?v=5.2"></script>
+<script src="./survey-admin.js?v=5.2"></script>
 <script src="./data-processor.js?v=5.1"></script>
 <script src="./admin-institution.js?v=5.1"></script>
 <script src="./admin-super.js?v=5.1"></script>
+<script src="./survey-identity.js?v=1.0"></script>
 <script src="upgrades.js"></script>
-</html>
 
+<script>
+// ── Profile helpers ──────────────────────────────────────────────────────────
+
+function openProfilePage() {
+  document.getElementById('profile-page').style.display = 'block';
+  populateProfileDisplay(); // async — updates fields as data arrives
+}
+
+function closeProfilePage() {
+  document.getElementById('profile-page').style.display = 'none';
+}
+
+function uploadProfileImage(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { alert('Image must be under 2 MB.'); e.target.value = ''; return; }
+  const reader = new FileReader();
+  reader.onload = async function () {
+    const data = reader.result;
+    document.getElementById('profilePreview').src = data;
+    document.getElementById('profileImage').src   = data;
+    localStorage.setItem('profileImage', data);
+    try {
+      const sess     = JSON.parse(localStorage.getItem('chsa_auth') || localStorage.getItem('chsa_session') || '{}');
+      const userId   = sess.user_id || sess.id || ('student_' + Date.now());
+      const token    = sess.token || sess.access_token || '';
+      const res = await fetch('/api/admin/upload-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? {'Authorization':'Bearer '+token} : {}) },
+        body: JSON.stringify({ image_base64: data, folder: 'profiles', filename: userId + '_profile.jpg' }),
+      });
+      if (res.ok) {
+        const { url } = await res.json();
+        localStorage.setItem('profileImageUrl', url);
+        if (token && userId) {
+          fetch('/api/admin/students', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ id: userId, profile_photo_url: url }),
+          }).catch(() => {});
+        }
+        _profileShowMsg('✅ Profile photo uploaded & saved', '#16a34a');
+      } else {
+        _profileShowMsg('⚠️ Upload failed — saved locally only', '#f59e0b');
+      }
+    } catch (err) { console.warn('[profileImage upload]', err); _profileShowMsg('⚠️ Upload error — saved locally only', '#f59e0b'); }
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Evidence Images (max 2 portrait) ────────────────────────────────────────
+// Track in-progress uploads so saveProfile() can wait for them
+const _evidenceUploading = {};
+
+async function _uploadEvidenceToStorage(data, slot) {
+  const sess   = JSON.parse(localStorage.getItem('chsa_auth') || localStorage.getItem('chsa_session') || '{}');
+  const userId = sess.user_id || sess.id || ('student_' + Date.now());
+  // Check all token storage locations
+  const token  = localStorage.getItem('hs_jwt_token')
+               || sessionStorage.getItem('hs_jwt_token')
+               || sess.token || sess.access_token || '';
+  const API_BASE = window.HS_API_BASE || '';
+
+  // Store the promise so saveProfile() can await it
+  const uploadPromise = (async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/admin?action=upload-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? {'Authorization':'Bearer '+token} : {}) },
+        body: JSON.stringify({ image_base64: data, folder: 'evidence', filename: userId + '_field' + slot + '_' + Date.now() + '.jpg' }),
+      });
+      if (res.ok) {
+        const { url } = await res.json();
+        if (url) {
+          localStorage.setItem('evidenceImgUrl' + slot, url);
+          return url;
+        }
+      } else {
+        console.warn('[evidence' + slot + ' upload] HTTP', res.status);
+      }
+    } catch (err) {
+      console.warn('[evidence' + slot + ' upload]', err.message);
+    }
+    return null;
+  })();
+
+  _evidenceUploading[slot] = uploadPromise;
+  const result = await uploadPromise;
+  delete _evidenceUploading[slot];
+  return result;
+}
+
+function handleEvidenceImage(e, slot) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { alert('Image exceeds 5 MB.'); return; }
+  const reader = new FileReader();
+  reader.onload = function () {
+    const data = reader.result;
+    try { localStorage.setItem('evidenceImg' + slot, data); } catch (_) {}
+    const preview = document.getElementById('evidencePreview' + slot);
+    const icon    = document.getElementById('evidenceIcon' + slot);
+    const label   = document.getElementById('evidenceLabel' + slot);
+    const clearBtn= document.getElementById('evidenceClear' + slot);
+    preview.src = data;
+    preview.style.display = 'block';
+    if (icon)  icon.style.display  = 'none';
+    if (label) label.style.display = 'none';
+    if (clearBtn) clearBtn.style.display = 'block';
+    // Upload in background
+    _uploadEvidenceToStorage(data, slot);
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearEvidenceImage(slot) {
+  localStorage.removeItem('evidenceImg' + slot);
+  const preview = document.getElementById('evidencePreview' + slot);
+  const icon    = document.getElementById('evidenceIcon' + slot);
+  const label   = document.getElementById('evidenceLabel' + slot);
+  const clearBtn= document.getElementById('evidenceClear' + slot);
+  if (preview) { preview.src = ''; preview.style.display = 'none'; }
+  if (icon)    icon.style.display  = '';
+  if (label)   label.style.display = '';
+  if (clearBtn) clearBtn.style.display = 'none';
+}
+
+// ── Survey Challenges (max 10) ───────────────────────────────────────────────
+function addChallenge(text) {
+  const list = document.getElementById('challengesList');
+  const countEl = document.getElementById('challengeCount');
+  const addBtn  = document.getElementById('addChallengeBtn');
+  if (!list) return;
+  const current = list.querySelectorAll('.challenge-item').length;
+  if (current >= 10) return;
+
+  const idx = current + 1;
+  const item = document.createElement('div');
+  item.className = 'challenge-item';
+  item.style.cssText = 'display:flex;align-items:center;gap:8px;';
+  item.innerHTML = `
+    <span style="font-size:.7rem;color:rgba(255,255,255,.3);font-weight:700;min-width:18px;text-align:right;">${idx}</span>
+    <input type="text" placeholder="Describe challenge ${idx}…"
+      value="${text ? text.replace(/"/g,'&quot;') : ''}"
+      style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:10px 12px;color:#fff;font-family:inherit;font-size:.85rem;outline:none;transition:border-color .2s;"
+      onfocus="this.style.borderColor='rgba(37,99,235,.6)'"
+      onblur="this.style.borderColor='rgba(255,255,255,.1)'"
+      oninput="saveChallenges()" />
+    <button onclick="removeChallenge(this)" style="width:28px;height:28px;border-radius:8px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.25);color:#f87171;font-size:.8rem;cursor:pointer;flex-shrink:0;">✕</button>`;
+  list.appendChild(item);
+
+  const newCount = list.querySelectorAll('.challenge-item').length;
+  if (countEl) countEl.textContent = newCount + ' / 10';
+  if (addBtn)  addBtn.style.display = newCount >= 10 ? 'none' : '';
+}
+
+function removeChallenge(btn) {
+  const item  = btn.closest('.challenge-item');
+  const list  = document.getElementById('challengesList');
+  if (item) item.remove();
+  // Re-number remaining
+  list.querySelectorAll('.challenge-item').forEach((el, i) => {
+    el.querySelector('span').textContent = i + 1;
+    el.querySelector('input').placeholder = 'Describe challenge ' + (i+1) + '…';
+  });
+  const countEl = document.getElementById('challengeCount');
+  const addBtn  = document.getElementById('addChallengeBtn');
+  const count   = list.querySelectorAll('.challenge-item').length;
+  if (countEl) countEl.textContent = count + ' / 10';
+  if (addBtn)  addBtn.style.display = count >= 10 ? 'none' : '';
+  saveChallenges();
+}
+
+function saveChallenges() {
+  const list = document.getElementById('challengesList');
+  if (!list) return;
+  const vals = Array.from(list.querySelectorAll('.challenge-item input')).map(i => i.value.trim());
+  try { localStorage.setItem('surveyChallenges', JSON.stringify(vals)); } catch (_) {}
+}
+
+// ── Save profile ─────────────────────────────────────────────────────────────
+async function saveProfile() {
+  const nameVal  = (document.getElementById('profileName')?.value  || '').trim();
+  const emailVal = (document.getElementById('profileEmail')?.value || '').trim();
+  if (nameVal)  localStorage.setItem('profileName',  nameVal);
+  if (emailVal) localStorage.setItem('profileEmail', emailVal);
+  saveChallenges();
+
+  // Update ALL name references immediately so the change is visible without re-login
+  if (nameVal) {
+    // 1. Update chsa_user_name (used by getUserName() everywhere)
+    localStorage.setItem('chsa_user_name', nameVal);
+    // 2. Update the session object
+    try {
+      const sess = JSON.parse(localStorage.getItem('chsa_auth') || '{}');
+      if (sess) { sess.full_name = nameVal; localStorage.setItem('chsa_auth', JSON.stringify(sess)); }
+    } catch (_) {}
+    // 3. Live-update the homepage greeting name
+    const hpName = document.getElementById('hp-name');
+    if (hpName) hpName.textContent = nameVal;
+    // 4. Live-update the consent form interviewer card and hidden field
+    const consentCard = document.getElementById('consent_interviewer_card');
+    if (consentCard) consentCard.textContent = nameVal;
+    const consentDisplay = document.getElementById('consent_name_display');
+    if (consentDisplay) consentDisplay.textContent = nameVal;
+    const hiddenName = document.getElementById('h_interviewer_name');
+    if (hiddenName) hiddenName.value = nameVal;
+  }
+
+  // Patch chsa_students via API
+  try {
+    const sess  = JSON.parse(localStorage.getItem('chsa_auth') || localStorage.getItem('chsa_session') || '{}');
+    // Check all token storage locations (mirrors getAuthToken() in survey-sync.js)
+    const token = localStorage.getItem('hs_jwt_token')
+               || sessionStorage.getItem('hs_jwt_token')
+               || sess.token || sess.access_token || '';
+    const uid   = sess.user_id || sess.id || '';
+    const profileUrl   = localStorage.getItem('profileImageUrl')  || null;
+    // Wait for any in-progress image uploads before reading the URLs
+    const pendingUploads = Object.values(_evidenceUploading);
+    if (pendingUploads.length) {
+      _profileShowMsg('⏳ Uploading images…', '#2563eb');
+      await Promise.allSettled(pendingUploads);
+    }
+    const evidence1Url = localStorage.getItem('evidenceImgUrl1') || null;
+    const evidence2Url = localStorage.getItem('evidenceImgUrl2') || null;
+    if (token) {
+      const patch = { id: uid };
+      if (nameVal)       patch.full_name         = nameVal;
+      if (emailVal)      patch.email             = emailVal;
+      if (profileUrl)    patch.profile_photo_url = profileUrl;
+      if (evidence1Url)  patch.field_photo_1_url = evidence1Url;
+      if (evidence2Url)  patch.field_photo_2_url = evidence2Url;
+      const API_BASE = window.HS_API_BASE || '';
+      const saveRes = await fetch(`${API_BASE}/api/admin?action=student-profile`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(patch),
+      });
+      if (!saveRes.ok) {
+        const errBody = await saveRes.json().catch(() => ({}));
+        console.warn('[saveProfile] server rejected:', saveRes.status, errBody);
+        _profileShowMsg('⚠️ Saved locally only', '#f59e0b');
+      } else {
+        // Verify: read back and confirm name matches
+        const verifyRes = await fetch(`${API_BASE}/api/admin?action=student-profile`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const serverData = verifyRes.ok ? await verifyRes.json() : {};
+        const verified = !nameVal || serverData.full_name === nameVal;
+        _profileShowMsg(verified ? '✅ Saved & verified' : '⚠️ Saved (unverified)', verified ? '#16a34a' : '#f59e0b');
+      }
+    } else {
+      _profileShowMsg('✅ Saved locally', '#0d9488');
+    }
+  } catch (_) { _profileShowMsg('⚠️ Saved locally only', '#f59e0b'); }
+}
+
+function _profileShowMsg(msg, color) {
+  const btn = document.querySelector('#profile-page button[onclick="saveProfile()"]');
+  if (!btn) return;
+  const orig = btn.innerHTML; const origBg = btn.style.background;
+  btn.innerHTML = msg; btn.style.background = color;
+  setTimeout(() => { btn.innerHTML = orig; btn.style.background = origBg; }, 2200);
+}
+
+// ── Populate profile fields from login / stored data ─────────────────────────
+async function populateProfileDisplay() {
+  try {
+    const sess = JSON.parse(localStorage.getItem('chsa_auth') || localStorage.getItem('chsa_session') || '{}');
+
+    // Admission number — read-only
+    const admNo = sess.reg_number || localStorage.getItem('admissionNo') || '—';
+    const admEl = document.getElementById('profileAdmissionNo');
+    if (admEl) admEl.textContent = admNo;
+
+    // Full name — editable
+    const nameEl = document.getElementById('profileName');
+    if (nameEl) nameEl.value = localStorage.getItem('profileName') || sess.full_name || '';
+
+    // Email — editable
+    const emailEl = document.getElementById('profileEmail');
+    if (emailEl) emailEl.value = localStorage.getItem('profileEmail') || sess.email || '';
+
+    // Institution name (read-only)
+    const instNameEl = document.getElementById('profileInstName');
+    if (instNameEl) instNameEl.textContent = sess.institution_name || '—';
+
+    // If admin_name or contact_email missing from session, do a live fetch from API
+    let adminName    = sess.admin_name    || '';
+    let contactEmail = sess.contact_email || '';
+    let county       = sess.county        || '';
+    let subCounty    = sess.sub_county    || '';
+    let ward         = sess.ward          || '';
+
+    if ((!adminName || !contactEmail) && sess.institution_id && window.HS?.HSAdmin?.getInstitutions) {
+      try {
+        const instData = await window.HS.HSAdmin.getInstitutions();
+        const found = (instData.institutions || []).find(i => i.id === sess.institution_id);
+        if (found) {
+          adminName    = found.admin_name    || adminName;
+          contactEmail = found.contact_email || contactEmail;
+          county       = found.county        || county;
+          subCounty    = found.sub_county    || subCounty;
+          ward         = found.ward          || ward;
+          // Update session cache so next open is instant
+          sess.admin_name    = adminName;
+          sess.contact_email = contactEmail;
+          sess.county        = county;
+          sess.sub_county    = subCounty;
+          sess.ward          = ward;
+          localStorage.setItem('chsa_auth', JSON.stringify(sess));
+        }
+      } catch (_) {}
+    }
+
+    // Admin name (read-only)
+    const adminNameEl = document.getElementById('profileAdminName');
+    if (adminNameEl) {
+      if (adminName) {
+        adminNameEl.textContent = adminName;
+        adminNameEl.style.color = '#fff';
+        adminNameEl.style.fontStyle = 'normal';
+        adminNameEl.style.fontSize = '.88rem';
+      } else {
+        adminNameEl.textContent = 'Not set — admin must update their profile';
+        adminNameEl.style.color = 'rgba(255,255,255,.3)';
+        adminNameEl.style.fontStyle = 'italic';
+        adminNameEl.style.fontSize = '.78rem';
+      }
+    }
+
+    // Admin contact (read-only)
+    const adminContactEl = document.getElementById('profileAdminContact');
+    if (adminContactEl) {
+      if (contactEmail) {
+        adminContactEl.textContent = contactEmail;
+        adminContactEl.style.color = 'rgba(255,255,255,.75)';
+        adminContactEl.style.fontStyle = 'normal';
+        adminContactEl.style.fontSize = '.85rem';
+      } else {
+        adminContactEl.textContent = 'Not set — admin must update their profile';
+        adminContactEl.style.color = 'rgba(255,255,255,.3)';
+        adminContactEl.style.fontStyle = 'italic';
+        adminContactEl.style.fontSize = '.78rem';
+      }
+    }
+
+    // Full location — county / sub_county / ward (deduplicated)
+    const locEl = document.getElementById('profileLocation');
+    if (locEl) {
+      const seen = new Set();
+      const parts = [county, subCounty, ward]
+        .filter(Boolean)
+        .filter(v => { if (seen.has(v)) return false; seen.add(v); return true; });
+      locEl.textContent = parts.length ? parts.join(' / ') : '—';
+    }
+
+    // Restore saved profile image
+    const img = localStorage.getItem('profileImage');
+    if (img) {
+      const topAvatar = document.getElementById('profileImage');
+      const previewEl = document.getElementById('profilePreview');
+      if (topAvatar) topAvatar.src = img;
+      if (previewEl) previewEl.src = img;
+    }
+  } catch (e) { console.warn('[populateProfileDisplay]', e); }
+}
+
+// ── Restore saved data on load ───────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function () {
+  populateProfileDisplay();
+
+  // Evidence images
+  [1, 2].forEach(slot => {
+    const data = localStorage.getItem('evidenceImg' + slot);
+    if (!data) return;
+    const preview = document.getElementById('evidencePreview' + slot);
+    const icon    = document.getElementById('evidenceIcon' + slot);
+    const label   = document.getElementById('evidenceLabel' + slot);
+    const clearBtn= document.getElementById('evidenceClear' + slot);
+    if (preview) { preview.src = data; preview.style.display = 'block'; }
+    if (icon)    icon.style.display  = 'none';
+    if (label)   label.style.display = 'none';
+    if (clearBtn) clearBtn.style.display = 'block';
+  });
+
+  // Challenges
+  const challenges = JSON.parse(localStorage.getItem('surveyChallenges') || '[]');
+  challenges.forEach(text => addChallenge(text));
+});
+</script>
+
+<div id="profile-page" style="display:none;position:fixed;inset:0;background:linear-gradient(160deg,#04080f 0%,#080f1a 50%,#04080f 100%);z-index:8000;overflow-y:auto;font-family:'Sora','DM Sans',sans-serif;color:#fff;">
+
+  <!-- Ambient blobs -->
+  <div style="position:fixed;width:260px;height:260px;border-radius:50%;background:rgba(37,99,235,.18);filter:blur(70px);top:-60px;right:-60px;pointer-events:none;z-index:0"></div>
+  <div style="position:fixed;width:200px;height:200px;border-radius:50%;background:rgba(13,148,136,.15);filter:blur(60px);bottom:-40px;left:-40px;pointer-events:none;z-index:0"></div>
+
+  <div style="position:relative;z-index:1;width:100%;max-width:420px;margin:0 auto;padding:max(env(safe-area-inset-top,20px),20px) 20px calc(max(env(safe-area-inset-bottom,20px),20px) + 20px);">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px;">
+      <button onclick="closeProfilePage()" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);color:#fff;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;">‹</button>
+      <div>
+        <div style="font-size:1.2rem;font-weight:800;letter-spacing:-.02em;">My Profile</div>
+        <div style="font-size:.65rem;color:rgba(255,255,255,.35);font-weight:600;letter-spacing:1.5px;text-transform:uppercase;">Account &amp; Identity</div>
+      </div>
+    </div>
+
+    <!-- Profile photo -->
+    <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:24px;">
+      <div style="position:relative;margin-bottom:10px;">
+        <img id="profilePreview" src="default.png" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid rgba(37,99,235,.5);box-shadow:0 0 30px rgba(37,99,235,.3);" />
+        <label style="position:absolute;bottom:2px;right:2px;width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#0d9488);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.8rem;box-shadow:0 2px 8px rgba(0,0,0,.4);" title="Change photo">
+          ✏️
+          <input type="file" accept="image/*" onchange="uploadProfileImage(event)" style="display:none;" />
+        </label>
+      </div>
+      <div style="font-size:.63rem;color:rgba(255,255,255,.3);letter-spacing:.5px;">Tap ✏️ to upload · Square (1:1) · max 2 MB · Saved to Supabase for reports</div>
+    </div>
+
+    <!-- Institution info (read-only) -->
+    <div style="background:rgba(37,99,235,.07);border:1px solid rgba(37,99,235,.18);border-radius:18px;padding:18px 20px;margin-bottom:16px;">
+      <div style="font-size:.62rem;color:rgba(37,99,235,.8);font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">🏫 Institution Details</div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <div style="font-size:.6rem;color:rgba(255,255,255,.35);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">School Name</div>
+          <div id="profileInstName" style="font-size:.92rem;font-weight:700;color:#fff;">—</div>
+        </div>
+        <div>
+          <div style="font-size:.6rem;color:rgba(255,255,255,.35);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Institution Admin</div>
+          <div id="profileAdminName" style="font-size:.88rem;color:rgba(255,255,255,.75);">—</div>
+        </div>
+        <div>
+          <div style="font-size:.6rem;color:rgba(255,255,255,.35);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Admin Contact</div>
+          <div id="profileAdminContact" style="font-size:.85rem;color:rgba(255,255,255,.6);">—</div>
+        </div>
+        <div>
+          <div style="font-size:.6rem;color:rgba(255,255,255,.35);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Location</div>
+          <div id="profileLocation" style="font-size:.85rem;color:rgba(255,255,255,.6);">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Personal info (editable) -->
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:20px;margin-bottom:16px;">
+      <div style="font-size:.62rem;color:rgba(255,255,255,.35);font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:14px;">🎓 Personal Info</div>
+
+      <!-- Admission number — read-only -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:.6rem;color:rgba(255,255,255,.35);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Admission / Reg Number</div>
+        <div id="profileAdmissionNo" style="width:100%;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:12px 14px;color:rgba(255,255,255,.5);font-size:.9rem;letter-spacing:.5px;">—</div>
+      </div>
+
+      <!-- Full Name — editable -->
+      <div style="margin-bottom:16px;">
+        <div style="font-size:.6rem;color:rgba(255,255,255,.35);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Full Name <span style="color:#f59e0b;font-size:.58rem;">(edit if incorrect)</span></div>
+        <input id="profileName" placeholder="e.g. Brian Atandi Oyunge"
+          style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 14px;color:#fff;font-family:inherit;font-size:.9rem;outline:none;transition:border-color .2s;box-sizing:border-box;"
+          onfocus="this.style.borderColor='rgba(37,99,235,.6)'"
+          onblur="this.style.borderColor='rgba(255,255,255,.1)'" />
+      </div>
+
+      <!-- Email — editable -->
+      <div>
+        <div style="font-size:.6rem;color:rgba(255,255,255,.35);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;">Email Address</div>
+        <input id="profileEmail" type="email" placeholder="e.g. brian@moh.go.ke"
+          style="width:100%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:12px 14px;color:#fff;font-family:inherit;font-size:.9rem;outline:none;transition:border-color .2s;box-sizing:border-box;"
+          onfocus="this.style.borderColor='rgba(37,99,235,.6)'"
+          onblur="this.style.borderColor='rgba(255,255,255,.1)'" />
+      </div>
+    </div>
+
+    <!-- Evidence Images -->
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:20px;margin-bottom:16px;">
+      <div style="font-size:.62rem;color:rgba(255,255,255,.35);font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">📷 Field Evidence Images</div>
+      <div style="font-size:.68rem;color:rgba(255,255,255,.3);margin-bottom:14px;">Portrait (3:4) · JPG/PNG · max 5 MB each · Saved to Supabase</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div style="position:relative;">
+          <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(37,99,235,.08);border:1.5px dashed rgba(37,99,235,.3);border-radius:12px;aspect-ratio:3/4;cursor:pointer;gap:6px;overflow:hidden;">
+            <img id="evidencePreview1" src="" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:12px;" />
+            <span style="font-size:1.6rem;position:relative;z-index:1;" id="evidenceIcon1">📷</span>
+            <span style="font-size:.62rem;color:rgba(255,255,255,.4);position:relative;z-index:1;" id="evidenceLabel1">Image 1</span>
+            <input type="file" accept="image/*" onchange="handleEvidenceImage(event,1)" style="display:none;" />
+          </label>
+          <button id="evidenceClear1" onclick="clearEvidenceImage(1)" style="display:none;position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:rgba(239,68,68,.85);border:none;color:#fff;font-size:.7rem;cursor:pointer;z-index:2;">✕</button>
+        </div>
+        <div style="position:relative;">
+          <label style="display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(37,99,235,.08);border:1.5px dashed rgba(37,99,235,.3);border-radius:12px;aspect-ratio:3/4;cursor:pointer;gap:6px;overflow:hidden;">
+            <img id="evidencePreview2" src="" style="display:none;width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:12px;" />
+            <span style="font-size:1.6rem;position:relative;z-index:1;" id="evidenceIcon2">📷</span>
+            <span style="font-size:.62rem;color:rgba(255,255,255,.4);position:relative;z-index:1;" id="evidenceLabel2">Image 2</span>
+            <input type="file" accept="image/*" onchange="handleEvidenceImage(event,2)" style="display:none;" />
+          </label>
+          <button id="evidenceClear2" onclick="clearEvidenceImage(2)" style="display:none;position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:rgba(239,68,68,.85);border:none;color:#fff;font-size:.7rem;cursor:pointer;z-index:2;">✕</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Survey Challenges -->
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:20px;margin-bottom:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div style="font-size:.62rem;color:rgba(255,255,255,.35);font-weight:700;letter-spacing:2px;text-transform:uppercase;">⚠️ Survey Challenges</div>
+        <div id="challengeCount" style="font-size:.65rem;color:rgba(255,255,255,.3);font-weight:600;">0 / 10</div>
+      </div>
+      <div style="font-size:.68rem;color:rgba(255,255,255,.3);margin-bottom:14px;">List challenges you encountered during surveys</div>
+      <div id="challengesList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+      <button id="addChallengeBtn" onclick="addChallenge()" style="width:100%;padding:11px;border-radius:10px;background:rgba(37,99,235,.12);border:1.5px dashed rgba(37,99,235,.3);color:rgba(255,255,255,.6);font-family:inherit;font-size:.82rem;font-weight:600;cursor:pointer;">
+        + Add Challenge
+      </button>
+    </div>
+
+    <!-- Report notice -->
+    <div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:14px;padding:16px;margin-bottom:24px;display:flex;gap:12px;align-items:flex-start;">
+      <div style="font-size:1.4rem;flex-shrink:0;">📋</div>
+      <div>
+        <div style="font-size:.78rem;font-weight:700;color:rgba(245,158,11,.9);margin-bottom:4px;">About Reports</div>
+        <div style="font-size:.73rem;color:rgba(255,255,255,.5);line-height:1.6;">All reports are generated by your <strong style="color:rgba(255,255,255,.75);">Institution Admin</strong> once you have completed your surveys and listed your field challenges above. Your profile photo and evidence images will be included in the report automatically.</div>
+      </div>
+    </div>
+
+    <!-- Save button -->
+    <button onclick="saveProfile()" style="width:100%;padding:16px;border-radius:14px;background:linear-gradient(135deg,#2563eb,#0d9488);color:#fff;border:none;font-family:inherit;font-size:.95rem;font-weight:800;cursor:pointer;letter-spacing:.3px;box-shadow:0 6px 24px rgba(37,99,235,.35);">
+      Save Profile
+    </button>
+
+    <button onclick="closeProfilePage()" style="width:100%;margin-top:12px;padding:13px;border-radius:14px;background:transparent;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.08);font-family:inherit;font-size:.85rem;font-weight:600;cursor:pointer;">
+      ← Back
+    </button>
+
+  </div>
+</div>
+
+<script>
+/* ── My Reports Panel ────────────────────────────────────────────────────────
+   Opens a dedicated full-screen panel listing every saved interview as a card.
+   Each card shows the interviewee identity + date and has direct buttons for
+   Brief / Full / IMRaD report — no drawer, no extra taps.
+──────────────────────────────────────────────────────────────────────────── */
+
+function openMyReportsPanel() {
+  var panel = document.getElementById('my-reports-panel');
+  if (!panel) return;
+  panel.style.display = 'flex';
+  _renderMyReports();
+}
+
+function closeMyReportsPanel() {
+  var panel = document.getElementById('my-reports-panel');
+  if (panel) panel.style.display = 'none';
+}
+
+function _renderMyReports() {
+  var list = document.getElementById('mrp-list');
+  var subtitle = document.getElementById('mrp-subtitle');
+  if (!list) return;
+
+  var store = {};
+  try { store = JSON.parse(localStorage.getItem('chsa4') || '{}'); } catch(e) {}
+  // Only show records with real content — exclude blank ghost records
+  var records = Object.entries(store).filter(function(entry) {
+    var k = entry[0], r = entry[1] || {};
+    if (k.startsWith('_')) return false;
+    return r._finished || r._synced || r.a_age || r.interview_location || r.interview_date;
+  }).reverse(); // newest first
+
+  subtitle.textContent = records.length + ' interview' + (records.length !== 1 ? 's' : '') + ' on this device';
+
+  if (!records.length) {
+    list.innerHTML = '<div style="text-align:center;padding:40px 20px;color:rgba(255,255,255,.3);">'
+      + '<div style="font-size:3rem;margin-bottom:12px;">📋</div>'
+      + '<div style="font-size:.9rem;font-weight:700;margin-bottom:6px;">No interviews yet</div>'
+      + '<div style="font-size:.75rem;line-height:1.6;">Complete an interview and finish it to see reports here.</div>'
+      + '</div>';
+    return;
+  }
+
+  list.innerHTML = records.map(function(entry) {
+    var id = entry[0], r = entry[1] || {};
+
+    // Build display name from survey fields
+    var name = r.a_full_name || r.full_name || r.name || '';
+    var age  = r.a_age  ? 'Age ' + r.a_age  : '';
+    var sex  = r.a_gender || r.a_sex || '';
+    var loc  = r.interview_location || r.a_village || r.a_ward || '';
+    var date = r._u || r._ts || '';
+
+    var primary = name || [age, sex].filter(Boolean).join(', ') || 'Unnamed Interview';
+    var meta = [age && !name ? '' : age, sex, loc].filter(Boolean).join(' · ') || 'No demographic info';
+    if (name && age) meta = [age, sex, loc].filter(Boolean).join(' · ');
+
+    var syncBadge = r._synced
+      ? '<span style="background:#1a3a2a;color:#4ade80;font-size:.6rem;padding:2px 7px;border-radius:99px;font-weight:700;">✓ Uploaded</span>'
+      : r._finished
+        ? '<span style="background:#2a1a00;color:#f59e0b;font-size:.6rem;padding:2px 7px;border-radius:99px;font-weight:700;">⏳ Pending</span>'
+        : '<span style="background:rgba(255,255,255,.07);color:rgba(255,255,255,.4);font-size:.6rem;padding:2px 7px;border-radius:99px;font-weight:700;">Draft</span>';
+
+    var hasFinished = !!r._finished;
+
+    return '<div style="background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:16px;overflow:hidden;">'
+      + '<div style="padding:14px 16px 10px;">'
+      +   '<div style="display:flex;align-items:flex-start;gap:10px;">'
+      +     '<div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#1d4ed8,#0d9488);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">👤</div>'
+      +     '<div style="flex:1;min-width:0;">'
+      +       '<div style="color:#fff;font-size:.9rem;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(primary) + '</div>'
+      +       '<div style="color:rgba(255,255,255,.4);font-size:.68rem;margin-top:2px;">' + _esc(meta) + '</div>'
+      +       '<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;">'
+      +         syncBadge
+      +         (date ? '<span style="color:rgba(255,255,255,.25);font-size:.6rem;">' + _esc(date) + '</span>' : '')
+      +       '</div>'
+      +     '</div>'
+      +   '</div>'
+      + '</div>'
+      + (hasFinished
+          ? '<div style="padding:10px 14px 14px;border-top:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;gap:8px;">'
+          +   '<button onclick="_mrpOpen(\'' + id + '\',\'brief\')" '
+          +   'style="width:100%;padding:13px 16px;background:linear-gradient(135deg,#2563eb,#0d9488);color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;text-align:left;" '
+          +   'ontouchstart="this.style.opacity=\'.8\'" ontouchend="this.style.opacity=\'1\'">'
+          +   '📋 Brief Report'
+          +   '</button>'
+          +   '<button onclick="_mrpOpen(\'' + id + '\',\'full\')" '
+          +   'style="width:100%;padding:13px 16px;background:linear-gradient(135deg,#1a4060,#1e3a7e);color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;text-align:left;" '
+          +   'ontouchstart="this.style.opacity=\'.8\'" ontouchend="this.style.opacity=\'1\'">'
+          +   '📄 Full Report'
+          +   '</button>'
+          +   '<button onclick="_mrpOpen(\'' + id + '\',\'imrad\')" '
+          +   'style="width:100%;padding:13px 16px;background:#4a235a;color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;text-align:left;" '
+          +   'ontouchstart="this.style.opacity=\'.8\'" ontouchend="this.style.opacity=\'1\'">'
+          +   '📑 IMRaD Report'
+          +   '</button>'
+          + '</div>'
+          : '<div style="padding:10px 14px 14px;border-top:1px solid rgba(255,255,255,.06);display:flex;gap:8px;">'
+          +   '<button onclick="closeMyReportsPanel();if(typeof loadRec===\'function\')loadRec(\'' + id + '\');" '
+          +   'style="flex:1;padding:13px 10px;background:linear-gradient(135deg,#1e5c38,#27764a);color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;" '
+          +   'ontouchstart="this.style.opacity=\'.8\'" ontouchend="this.style.opacity=\'1\'">'
+          +   '✏️ Continue'
+          +   '</button>'
+          +   '<button onclick="if(typeof delRec===\'function\')delRec(\'' + id + '\');setTimeout(_renderMyReports,600);" '
+          +   'style="padding:13px 14px;background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.3);color:#f87171;border-radius:12px;font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;" '
+          +   'ontouchstart="this.style.opacity=\'.8\'" ontouchend="this.style.opacity=\'1\'">'
+          +   '🗑️'
+          +   '</button>'
+          + '</div>'
+        )
+  }).join('');
+}
+
+function _rptBtn(id, label, icon, bg, bgHover) {
+  return '<button onclick="_mrpOpen(\'' + id + '\',\'' + label + '\')" '
+    + 'style="padding:11px 4px;background:transparent;border:none;color:#fff;font-family:inherit;font-size:.72rem;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;transition:background .15s;" '
+    + 'onmouseenter="this.style.background=\'' + bgHover + '\'" '
+    + 'onmouseleave="this.style.background=\'transparent\'" '
+    + 'ontouchstart="this.style.background=\'' + bgHover + '\'" '
+    + 'ontouchend="this.style.background=\'transparent\'">'
+    + '<span style="font-size:1.2rem;">' + icon + '</span>'
+    + '<span>' + label + '</span>'
+    + '</button>';
+}
+
+function _mrpOpen(id, type) {
+  closeMyReportsPanel();
+  // Flag so closeReportOverlay returns to My Reports panel instead of home
+  window._reportFromMyReports = true;
+  openSingleRecordReport(id, type || 'brief');
+}
+
+// Load a saved record by localStorage key and open the requested report type
+// directly in a new tab. Works from My Reports panel or any other entry point.
+function openSingleRecordReport(id, type) {
+  var store = {};
+  try { store = JSON.parse(localStorage.getItem('chsa4') || '{}'); } catch(e) {}
+  var rec = store[id];
+  if (!rec) { showToast('Record not found', true); return; }
+
+  // Merge raw_json into the record so all survey fields are accessible
+  try {
+    var raw = typeof rec.raw_json === 'string' ? JSON.parse(rec.raw_json) : (rec.raw_json || {});
+    rec = Object.assign({}, rec, raw);
+  } catch(e) {}
+
+  // Set recId so cRec() returns this record for the report builder.
+  // We write directly into recs[] and set recId — no DOM manipulation needed.
+  try {
+    if (typeof generateRecordId === 'function') {
+      // Use the stored id key as recId so cRec() maps to it
+      window.recId = id;
+      if (typeof recs !== 'undefined') recs[id] = rec;
+      else if (typeof ls === 'function') { ls(); if(typeof recs!=='undefined') recs[id]=rec; }
+    }
+  } catch(e) { console.warn('[openSingleRecordReport] recId set failed:', e); }
+
+  var t = (type || 'brief').toLowerCase();
+  try {
+    if (t === 'full') {
+      if (typeof openFullReport === 'function') { openFullReport(); return; }
+    }
+    if (t === 'imrad') {
+      if (typeof openIMRaDReport === 'function') { openIMRaDReport(); return; }
+    }
+    // Default: brief
+    if (typeof openBriefReport === 'function') { openBriefReport(); return; }
+    showToast('Report engine not loaded', true);
+  } catch(err) {
+    showToast('Report error: ' + err.message, true);
+  }
+}
+
+function _esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Keep _silentLoad here (used by both old and new code)
+function _silentLoad(data) {
+  try {
+    var raw = (function(){
+      try { return typeof data.raw_json === 'string' ? JSON.parse(data.raw_json) : (data.raw_json || {}); } catch(e) { return {}; }
+    })();
+    var merged = Object.assign({}, data, raw);
+    // Set recId to the record's own key so cRec() returns correct data
+    if (typeof generateRecordId === 'function') window.recId = data.id || data.rec_id || generateRecordId();
+    // Clear any stale cached data for this ID before loading
+    if (typeof recs !== 'undefined' && window.recId) { recs[window.recId] = {}; }
+    if (typeof pRec === 'function') pRec(merged);
+    // Do NOT call loadInto here — this is a silent load for report generation only.
+    // loadInto would overwrite the live form which may have unsaved changes.
+  } catch(e) { console.warn('Silent load failed:', e); }
+}
+
+/* ── Legacy drawer-report-mode helpers (kept for compatibility) ─────────── */
+var _drwReportMode = false;
+function openDrawerReportMode() { openMyReportsPanel(); }
+</script>
+
+</body>
 </html>

@@ -248,8 +248,11 @@ function admLoad(){
     admSetConn('loading');
   }
 
-  const isSuperAdm = (typeof isSuperAdmin === 'function') ? isSuperAdmin() : false;
-  const instId = window.HS && window.HS.Auth ? window.HS.Auth.getInstitutionId() : null;
+  const isSuperAdm = (window.HS && window.HS.Auth)
+    ? window.HS.Auth.isSuperAdmin()
+    : (localStorage.getItem('chsa_is_admin_bypass') === '1' ||
+       (() => { try { return JSON.parse(localStorage.getItem('chsa_session') || '{}').role === 'super_admin'; } catch { return false; } })());
+  const instId = (window.HS && window.HS.Auth) ? window.HS.Auth.getInstitutionId() : null;
 
   admDebug.log('Fetching data via API', { isSuperAdm });
 
@@ -690,7 +693,8 @@ function admExportJSON(){
 
 function admForceSyncAll(){
   if(!confirm('Force re-upload ALL local records?\nThis re-syncs even already-synced records.')) return;
-  syncAll(true);
+  if(typeof forceSyncAll === 'function') forceSyncAll();
+  else syncAll();
 }
 
 //  BIN / INSIGHTS / STUDENTS 
@@ -949,7 +953,7 @@ function admRenderInsights(){
 async function admLoadStudents(){
   const empty = document.getElementById('adm-students-empty');
   if(empty) empty.style.display='none';
-  const instId = window.HS && window.HS.Auth ? window.HS.Auth.getInstitutionId() : null;
+  const instId = (window.HS && window.HS.Auth) ? window.HS.Auth.getInstitutionId() : null;
   try{
     const data = await window.HS.HSAdmin.getStudents(instId);
     _admStudents = data.students || [];

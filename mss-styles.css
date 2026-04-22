@@ -263,7 +263,7 @@ html, body {
 /* ══════════════════════════════════════════════════════════════════
    SECTION 5 — AUTH SCREEN
    ══════════════════════════════════════════════════════════════════ */
-#lamp-auth { font-family: var(--font-body) !important; background: linear-gradient(160deg, #04080f 0%, #04080e 100%) !important; }
+#lamp-auth { font-family: var(--font-body) !important; background: linear-gradient(160deg, #04080f 0%, #04080e 100%) !important; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); box-sizing: border-box; }
 .auth-hdr-title { font-family: var(--font-body) !important; font-size: 1rem !important; font-weight: 700 !important; color: var(--text-1) !important; }
 .auth-hdr-sub { color: var(--text-3) !important; font-family: var(--font-body) !important; font-size: .6rem !important; }
 .auth-footer { font-family: var(--font-body) !important; }
@@ -344,7 +344,7 @@ html, body {
    ══════════════════════════════════════════════════════════════════ */
 .secs-wrap, #secsWrap {
   max-width: 680px !important; margin: 0 auto !important;
-  padding: 12px 16px 120px !important; width: 100% !important;
+  padding: 12px 16px 24px !important; width: 100% !important;
   box-sizing: border-box !important;
 }
 .sec-card {
@@ -356,16 +356,55 @@ html, body {
 .sec-hdr {
   background: var(--grad-card) !important; border: 1px solid var(--border-1) !important;
   border-bottom: none !important; border-radius: var(--r-md) var(--r-md) 0 0 !important;
-  padding: 14px 18px 12px;
-  display: flex; align-items: center; justify-content: space-between;
+  padding: 0;
+  display: flex; flex-direction: column;
 }
-.sec-title { color: var(--text-1); font-size: .9rem; font-weight: 700; letter-spacing: -.01em; }
+
+/* Top row: title + badge sit side-by-side */
+.sec-hdr-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 16px 18px 14px;
+}
+
+.sec-title { color: var(--text-1); font-size: 1.15rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; }
 .sec-badge {
   background: rgba(37,99,235,.08) !important; border: 1px solid rgba(37,99,235,.2) !important;
   color: #93c5fd !important; font-family: var(--font-body) !important;
-  font-size: .55rem !important; border-radius: var(--pill); padding: 2px 9px; font-weight: 600; letter-spacing: .5px;
+  font-size: .65rem !important; border-radius: var(--pill); padding: 3px 11px; font-weight: 700; letter-spacing: .5px;
+  white-space: nowrap; flex-shrink: 0;
 }
 .sec-body { padding: 18px; }
+
+/* Validation banner — hidden until .show is added by JS */
+.val-banner {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  padding: 13px 16px;
+  background: linear-gradient(135deg, #fff1f2, #ffe4e6);
+  border: 1.5px solid #fca5a5;
+  border-left: 4px solid #ef4444;
+  border-radius: 10px;
+  font-size: .82rem;
+  font-weight: 700;
+  color: #b91c1c;
+  line-height: 1.4;
+}
+.val-banner::before {
+  content: "⚠️";
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+.val-banner.show {
+  display: flex;
+}
+[data-theme="dark"] .val-banner {
+  background: linear-gradient(135deg, rgba(239,68,68,.12), rgba(185,28,28,.08));
+  border-color: rgba(239,68,68,.35);
+  border-left-color: #ef4444;
+  color: #fca5a5;
+}
 
 /* Questions */
 .q-block { margin-bottom: 22px; }
@@ -387,7 +426,15 @@ html, body {
 }
 .opt:hover { border-color: var(--blue-lite); background: var(--bg-overlay); color: var(--text-1); }
 .opt input { accent-color: var(--blue-mid); width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; }
-.opt.selected { border-color: var(--blue-mid); background: rgba(37,99,235,.08); color: var(--text-1); font-weight: 600; }
+.opt.selected,
+.opt:has(input:checked),
+.opt[data-checked="true"] {
+  border-color: var(--blue-mid) !important;
+  background: rgba(37,99,235,.10) !important;
+  color: var(--text-1) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 0 0 2px rgba(37,99,235,.18) !important;
+}
 .opts.compact .opt { padding: 8px 12px; font-size: .76rem; }
 
 /* Inputs */
@@ -501,6 +548,16 @@ table.dt select { width: 100%; padding: 5px 8px; background: var(--bg-input); bo
 .drw-title { font-size: .95rem; font-weight: 700; color: var(--text-1); }
 .drw-close { background: var(--bg-raised); border: none; color: var(--text-2); width: 28px; height: 28px; border-radius: 50%; font-size: .8rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .drw-scroll { flex: 1; overflow-y: auto; padding: 8px 0; -webkit-overflow-scrolling: touch; }
+.rec-item { display: flex; align-items: stretch; border-bottom: 1px solid var(--border-2); }
+.rec-item:last-child { border-bottom: none; }
+.rec-item.act .rec-item-body { background: var(--blue-dim); }
+.rec-item-body { flex: 1; padding: 13px 12px 13px 16px; cursor: pointer; transition: background var(--t) var(--ease); min-width: 0; }
+.rec-item-body:active { background: var(--blue-dim); }
+.rec-name { font-size: .82rem; font-weight: 700; color: var(--text-1); line-height: 1.4; }
+.rec-meta { font-size: .7rem; color: var(--text-2); margin-top: 2px; }
+.rec-del { flex-shrink: 0; width: 56px; background: transparent; border: none; border-left: 1px solid var(--border-2); font-size: 1.2rem; cursor: pointer; color: #c00; display: flex; align-items: center; justify-content: center; transition: background .15s; -webkit-tap-highlight-color: transparent; }
+.rec-del:active { background: #fdecea; }
+.empty-recs { padding: 36px 20px; text-align: center; color: var(--text-2); font-size: .85rem; }
 .drw-item { padding: 12px 18px; border-bottom: 1px solid var(--border-2); cursor: pointer; transition: background var(--t) var(--ease); }
 .drw-item:hover { background: var(--bg-raised); }
 .drw-item:last-child { border-bottom: none; }
@@ -915,8 +972,9 @@ html[data-theme="light"], html[data-theme="light"] body { background: #f0f2f5 !i
 
 /* Survey sections */
 [data-theme="light"] .sec-hdr { background: #ffffff !important; border-color: rgba(0,0,0,.08) !important; }
-[data-theme="light"] .sec-title { color: #111b21 !important; }
+[data-theme="light"] .sec-title { color: #111b21 !important; font-size: 1.15rem !important; font-weight: 800 !important; }
 [data-theme="light"] .secs-wrap, [data-theme="light"] #secsWrap { background: #f0f2f5 !important; }
+[data-theme="light"] #survey-wrap { background: #f0f2f5 !important; }
 [data-theme="light"] .sec-card { background: #ffffff !important; border-color: rgba(0,0,0,.08) !important; }
 [data-theme="light"] .q-label { color: #111b21 !important; }
 [data-theme="light"] .q-card { background: #ffffff !important; border-color: rgba(0,0,0,.08) !important; }
@@ -1114,8 +1172,11 @@ button, [role="button"] { -webkit-tap-highlight-color: transparent !important; t
 .chip input[type="checkbox"] {
   position: absolute;
   opacity: 0;
-  width: 0;
-  height: 0;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
   pointer-events: none;
 }
 .chip label {
@@ -1166,23 +1227,34 @@ button, [role="button"] { -webkit-tap-highlight-color: transparent !important; t
 .chip label:active {
   transform: scale(.97) translateY(0);
 }
-/* Checked state */
+/* ── Checked state: three selectors for maximum device compatibility ──
+   1. CSS sibling: input:checked + label  (most browsers)
+   2. JS-driven:   chip[data-checked=true] label  (mobile fallback via MSS_syncChips)
+   3. :has():      chip:has(input:checked) label  (modern browsers)
+*/
 .chip input[type="radio"]:checked + label,
-.chip input[type="checkbox"]:checked + label {
-  background: rgba(37,99,235,.12);
-  border-color: var(--blue-mid);
-  color: var(--text-inv);
-  font-weight: 700;
-  box-shadow: 0 0 0 1px rgba(37,99,235,.3), 0 2px 8px rgba(37,99,235,.2);
+.chip input[type="checkbox"]:checked + label,
+.chip[data-checked="true"] label,
+.chip:has(input[type="radio"]:checked) label,
+.chip:has(input[type="checkbox"]:checked) label {
+  background: rgba(37,99,235,.15) !important;
+  border-color: var(--blue-mid) !important;
+  color: #e8f0fe !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 0 2px rgba(37,99,235,.3), 0 2px 10px rgba(37,99,235,.15) !important;
+  transform: translateY(-1px) !important;
 }
-.chip input[type="radio"]:checked + label::before {
-  background: var(--blue-mid);
-  border-color: var(--blue-mid);
-  box-shadow: inset 0 0 0 3px var(--bg-card);
+.chip input[type="radio"]:checked + label::before,
+.chip[data-checked="true"] label::before,
+.chip:has(input[type="radio"]:checked) label::before {
+  background: var(--blue-mid) !important;
+  border-color: var(--blue-mid) !important;
+  box-shadow: inset 0 0 0 3px var(--bg-card) !important;
 }
-.chip input[type="checkbox"]:checked + label::before {
-  background: var(--blue-mid);
-  border-color: var(--blue-mid);
+.chip input[type="checkbox"]:checked + label::before,
+.chip:has(input[type="checkbox"]:checked) label::before {
+  background: var(--blue-mid) !important;
+  border-color: var(--blue-mid) !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='8' viewBox='0 0 10 8'%3E%3Cpath d='M1 3.5L4 6.5 9 1' stroke='white' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
@@ -1244,7 +1316,9 @@ button, [role="button"] { -webkit-tap-highlight-color: transparent !important; t
   border-color: rgba(0,0,0,.2);
 }
 [data-theme="light"] .chip input[type="radio"]:checked + label,
-[data-theme="light"] .chip input[type="checkbox"]:checked + label {
+[data-theme="light"] .chip input[type="checkbox"]:checked + label,
+[data-theme="light"] .chip[data-checked="true"] label,
+[data-theme="light"] .chip:has(input:checked) label {
   background: rgba(37,99,235,.08);
   border-color: rgba(37,99,235,.35);
   color: #1d4ed8;
@@ -1397,4 +1471,822 @@ button, [role="button"] { -webkit-tap-highlight-color: transparent !important; t
   width: 100%;              /* forces new line */
   justify-content: center;  /* center text */
   margin-top: 4px;
+}
+
+/* ── Student FAB ── */
+#fab-container {
+  position: fixed;
+  bottom: 80px;
+  right: 18px;
+  z-index: 7500;          /* above home page (7000) and below welcome/auth (8000) */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+  /* Hidden by default — shown only when survey is active */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .25s ease, visibility .25s ease;
+}
+/* Show FAB when survey is active */
+#fab-container.fab-visible {
+  opacity: 1;
+  visibility: visible;
+}
+#fab-container > * { pointer-events: auto; }
+
+#fab-main {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: #2e7cf6;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 18px rgba(46,124,246,.5);
+  transition: opacity .3s, transform .28s, background .2s;
+}
+.fab-inactive #fab-main {
+  opacity: 0.35;
+  transform: scale(0.84);
+  box-shadow: 0 2px 8px rgba(46,124,246,.2);
+}
+.fab-active #fab-main {
+  opacity: 1;
+  transform: scale(1);
+  background: #1a5fa8;
+}
+
+.fab-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  opacity: 0;
+  transform: translateY(20px) scale(0.75);
+  pointer-events: none;
+  transition: opacity .22s ease, transform .28s cubic-bezier(.34,1.4,.64,1);
+}
+#fab-container.fab-active .fab-actions {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.fab-action-btn {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-shadow: 0 3px 14px rgba(0,0,0,.22);
+  transition: transform .15s;
+  font-size: 8px;
+  font-weight: 800;
+  font-family: inherit;
+  letter-spacing: .2px;
+}
+.fab-action-btn:active { transform: scale(0.87); }
+#btn-fab-restore { color: #1a7a35; }
+#btn-fab-sync    { color: #0a6ebd; }
+#btn-fab-save    { color: #6b4f00; }
+
+/* ══════════════════════════════════════════════════════════════════
+   SECTION 33 — PER-SECTION COLOR PALETTE
+   Each survey section (.sec-card) gets its own accent colour.
+   Works in both dark and light mode — no jarring switches.
+   ══════════════════════════════════════════════════════════════════ */
+
+/*
+  Usage in HTML:  add data-sec="1" … data-sec="10" to each .sec-card
+  (or .sec-hdr, the rule cascades down).
+  If you already use numbered IDs like #sec1, the attribute selector
+  below mirrors that automatically via a JS-free fallback.
+*/
+
+/* ── Section colour tokens ── */
+/* Each palette defines: accent, accent-dim, accent-glow, hdr-grad */
+/* Dark-mode values (default) */
+:root {
+  /* 1 · Cobalt blue  — Identification / Demographics */
+  --s1-accent:  #3b82f6; --s1-dim: rgba(59,130,246,.14); --s1-glow: rgba(59,130,246,.30);
+  --s1-grad: linear-gradient(135deg,#1e3a5f 0%,#0d1826 100%);
+  --s1-border: rgba(59,130,246,.28);
+
+  /* 2 · Teal-cyan  — Household / Living conditions */
+  --s2-accent:  #06b6d4; --s2-dim: rgba(6,182,212,.13); --s2-glow: rgba(6,182,212,.28);
+  --s2-grad: linear-gradient(135deg,#0c2d38 0%,#080f1a 100%);
+  --s2-border: rgba(6,182,212,.28);
+
+  /* 3 · Emerald green  — Health status */
+  --s3-accent:  #10b981; --s3-dim: rgba(16,185,129,.13); --s3-glow: rgba(16,185,129,.28);
+  --s3-grad: linear-gradient(135deg,#062820 0%,#080f1a 100%);
+  --s3-border: rgba(16,185,129,.28);
+
+  /* 4 · Violet  — Chronic disease / NCD */
+  --s4-accent:  #8b5cf6; --s4-dim: rgba(139,92,246,.13); --s4-glow: rgba(139,92,246,.28);
+  --s4-grad: linear-gradient(135deg,#1e1240 0%,#0d1826 100%);
+  --s4-border: rgba(139,92,246,.28);
+
+  /* 5 · Rose  — Maternal & child health */
+  --s5-accent:  #f43f5e; --s5-dim: rgba(244,63,94,.12); --s5-glow: rgba(244,63,94,.28);
+  --s5-grad: linear-gradient(135deg,#3b0e1a 0%,#0d1826 100%);
+  --s5-border: rgba(244,63,94,.28);
+
+  /* 6 · Amber-gold  — Nutrition */
+  --s6-accent:  #f59e0b; --s6-dim: rgba(245,158,11,.12); --s6-glow: rgba(245,158,11,.28);
+  --s6-grad: linear-gradient(135deg,#2d1d06 0%,#0d1826 100%);
+  --s6-border: rgba(245,158,11,.28);
+
+  /* 7 · Sky blue  — WASH / Water & sanitation */
+  --s7-accent:  #38bdf8; --s7-dim: rgba(56,189,248,.12); --s7-glow: rgba(56,189,248,.28);
+  --s7-grad: linear-gradient(135deg,#082233 0%,#080f1a 100%);
+  --s7-border: rgba(56,189,248,.28);
+
+  /* 8 · Lime-green  — Mental health / Wellbeing */
+  --s8-accent:  #84cc16; --s8-dim: rgba(132,204,22,.12); --s8-glow: rgba(132,204,22,.25);
+  --s8-grad: linear-gradient(135deg,#142206 0%,#080f1a 100%);
+  --s8-border: rgba(132,204,22,.28);
+
+  /* 9 · Orange  — Service utilisation */
+  --s9-accent:  #f97316; --s9-dim: rgba(249,115,22,.12); --s9-glow: rgba(249,115,22,.28);
+  --s9-grad: linear-gradient(135deg,#301406 0%,#0d1826 100%);
+  --s9-border: rgba(249,115,22,.28);
+
+  /* 10 · Pink-fuchsia  — Feedback / Comments */
+  --s10-accent: #e879f9; --s10-dim: rgba(232,121,249,.12); --s10-glow: rgba(232,121,249,.28);
+  --s10-grad: linear-gradient(135deg,#2a0e2e 0%,#0d1826 100%);
+  --s10-border: rgba(232,121,249,.28);
+
+  /* 11 · Indigo-violet  — Cultural Practices (Section J) */
+  --s11-accent: #818cf8; --s11-dim: rgba(129,140,248,.13); --s11-glow: rgba(129,140,248,.30);
+  --s11-grad: linear-gradient(135deg,#1e1b4b 0%,#0d1826 100%);
+  --s11-border: rgba(129,140,248,.28);
+
+  /* 12 · Crimson-rose  — Community & Social (Section K) */
+  --s12-accent: #fb7185; --s12-dim: rgba(251,113,133,.12); --s12-glow: rgba(251,113,133,.28);
+  --s12-grad: linear-gradient(135deg,#3b0a1e 0%,#0d1826 100%);
+  --s12-border: rgba(251,113,133,.28);
+
+  /* 13 · Teal-cyan  — Interviewer Challenges / Field Obs (Section L) */
+  --s13-accent: #2dd4bf; --s13-dim: rgba(45,212,191,.12); --s13-glow: rgba(45,212,191,.28);
+  --s13-grad: linear-gradient(135deg,#042f2e 0%,#0d1826 100%);
+  --s13-border: rgba(45,212,191,.28);
+}
+
+/* ── Light-mode overrides for section tokens ── */
+[data-theme="light"] {
+  --s1-dim: rgba(37,99,235,.07);  --s1-glow: rgba(37,99,235,.15);
+  --s1-grad: linear-gradient(135deg,#dbeafe 0%,#f0f4ff 100%);
+  --s1-border: rgba(37,99,235,.20);
+
+  --s2-dim: rgba(6,182,212,.07);  --s2-glow: rgba(6,182,212,.15);
+  --s2-grad: linear-gradient(135deg,#cffafe 0%,#f0faff 100%);
+  --s2-border: rgba(6,182,212,.22);
+
+  --s3-dim: rgba(16,185,129,.07); --s3-glow: rgba(16,185,129,.15);
+  --s3-grad: linear-gradient(135deg,#d1fae5 0%,#f0fff8 100%);
+  --s3-border: rgba(16,185,129,.22);
+
+  --s4-dim: rgba(139,92,246,.07); --s4-glow: rgba(139,92,246,.15);
+  --s4-grad: linear-gradient(135deg,#ede9fe 0%,#f5f0ff 100%);
+  --s4-border: rgba(139,92,246,.20);
+
+  --s5-dim: rgba(244,63,94,.07);  --s5-glow: rgba(244,63,94,.15);
+  --s5-grad: linear-gradient(135deg,#ffe4e6 0%,#fff0f3 100%);
+  --s5-border: rgba(244,63,94,.22);
+
+  --s6-dim: rgba(245,158,11,.07); --s6-glow: rgba(245,158,11,.15);
+  --s6-grad: linear-gradient(135deg,#fef3c7 0%,#fffbeb 100%);
+  --s6-border: rgba(245,158,11,.22);
+
+  --s7-dim: rgba(56,189,248,.07); --s7-glow: rgba(56,189,248,.15);
+  --s7-grad: linear-gradient(135deg,#e0f2fe 0%,#f0f9ff 100%);
+  --s7-border: rgba(56,189,248,.22);
+
+  --s8-dim: rgba(132,204,22,.07); --s8-glow: rgba(132,204,22,.15);
+  --s8-grad: linear-gradient(135deg,#ecfccb 0%,#f7ffe4 100%);
+  --s8-border: rgba(132,204,22,.22);
+
+  --s9-dim: rgba(249,115,22,.07); --s9-glow: rgba(249,115,22,.15);
+  --s9-grad: linear-gradient(135deg,#ffedd5 0%,#fff7ed 100%);
+  --s9-border: rgba(249,115,22,.22);
+
+  --s10-dim: rgba(232,121,249,.07); --s10-glow: rgba(232,121,249,.15);
+  --s10-grad: linear-gradient(135deg,#fce7f3 0%,#fff0fb 100%);
+  --s10-border: rgba(232,121,249,.20);
+
+  --s11-dim: rgba(129,140,248,.07); --s11-glow: rgba(129,140,248,.15);
+  --s11-grad: linear-gradient(135deg,#e0e7ff 0%,#f0f0ff 100%);
+  --s11-border: rgba(129,140,248,.22);
+
+  --s12-dim: rgba(251,113,133,.07); --s12-glow: rgba(251,113,133,.15);
+  --s12-grad: linear-gradient(135deg,#ffe4e6 0%,#fff0f3 100%);
+  --s12-border: rgba(251,113,133,.22);
+
+  --s13-dim: rgba(45,212,191,.07);  --s13-glow: rgba(45,212,191,.15);
+  --s13-grad: linear-gradient(135deg,#ccfbf1 0%,#f0fdfb 100%);
+  --s13-border: rgba(45,212,191,.22);
+}
+
+/* ── Helper mixin pattern ──
+   Each numbered variant sets --sec-accent etc on the card itself,
+   then all child rules reference var(--sec-*). Keeps the code DRY.
+*/
+
+/* Section 1 */
+.sec-card[data-sec="1"], #sec1.sec-card {
+  --sec-accent: var(--s1-accent); --sec-dim: var(--s1-dim);
+  --sec-glow: var(--s1-glow); --sec-grad: var(--s1-grad);
+  --sec-border: var(--s1-border);
+}
+/* Section 2 */
+.sec-card[data-sec="2"], #sec2.sec-card {
+  --sec-accent: var(--s2-accent); --sec-dim: var(--s2-dim);
+  --sec-glow: var(--s2-glow); --sec-grad: var(--s2-grad);
+  --sec-border: var(--s2-border);
+}
+/* Section 3 */
+.sec-card[data-sec="3"], #sec3.sec-card {
+  --sec-accent: var(--s3-accent); --sec-dim: var(--s3-dim);
+  --sec-glow: var(--s3-glow); --sec-grad: var(--s3-grad);
+  --sec-border: var(--s3-border);
+}
+/* Section 4 */
+.sec-card[data-sec="4"], #sec4.sec-card {
+  --sec-accent: var(--s4-accent); --sec-dim: var(--s4-dim);
+  --sec-glow: var(--s4-glow); --sec-grad: var(--s4-grad);
+  --sec-border: var(--s4-border);
+}
+/* Section 5 */
+.sec-card[data-sec="5"], #sec5.sec-card {
+  --sec-accent: var(--s5-accent); --sec-dim: var(--s5-dim);
+  --sec-glow: var(--s5-glow); --sec-grad: var(--s5-grad);
+  --sec-border: var(--s5-border);
+}
+/* Section 6 */
+.sec-card[data-sec="6"], #sec6.sec-card {
+  --sec-accent: var(--s6-accent); --sec-dim: var(--s6-dim);
+  --sec-glow: var(--s6-glow); --sec-grad: var(--s6-grad);
+  --sec-border: var(--s6-border);
+}
+/* Section 7 */
+.sec-card[data-sec="7"], #sec7.sec-card {
+  --sec-accent: var(--s7-accent); --sec-dim: var(--s7-dim);
+  --sec-glow: var(--s7-glow); --sec-grad: var(--s7-grad);
+  --sec-border: var(--s7-border);
+}
+/* Section 8 */
+.sec-card[data-sec="8"], #sec8.sec-card {
+  --sec-accent: var(--s8-accent); --sec-dim: var(--s8-dim);
+  --sec-glow: var(--s8-glow); --sec-grad: var(--s8-grad);
+  --sec-border: var(--s8-border);
+}
+/* Section 9 */
+.sec-card[data-sec="9"], #sec9.sec-card {
+  --sec-accent: var(--s9-accent); --sec-dim: var(--s9-dim);
+  --sec-glow: var(--s9-glow); --sec-grad: var(--s9-grad);
+  --sec-border: var(--s9-border);
+}
+/* Section 10 */
+.sec-card[data-sec="10"], #sec10.sec-card {
+  --sec-accent: var(--s10-accent); --sec-dim: var(--s10-dim);
+  --sec-glow: var(--s10-glow); --sec-grad: var(--s10-grad);
+  --sec-border: var(--s10-border);
+}
+/* Section 11 */
+.sec-card[data-sec="11"], #sec11.sec-card {
+  --sec-accent: var(--s11-accent); --sec-dim: var(--s11-dim);
+  --sec-glow: var(--s11-glow); --sec-grad: var(--s11-grad);
+  --sec-border: var(--s11-border);
+}
+/* Section 12 */
+.sec-card[data-sec="12"], #sec12.sec-card {
+  --sec-accent: var(--s12-accent); --sec-dim: var(--s12-dim);
+  --sec-glow: var(--s12-glow); --sec-grad: var(--s12-grad);
+  --sec-border: var(--s12-border);
+}
+/* Section 13 */
+.sec-card[data-sec="13"], #sec13.sec-card {
+  --sec-accent: var(--s13-accent); --sec-dim: var(--s13-dim);
+  --sec-glow: var(--s13-glow); --sec-grad: var(--s13-grad);
+  --sec-border: var(--s13-border);
+}
+
+/* ── Apply the tokens to every numbered sec-card ── */
+.sec-card[data-sec],
+#sec1.sec-card, #sec2.sec-card, #sec3.sec-card,
+#sec4.sec-card, #sec5.sec-card, #sec6.sec-card,
+#sec7.sec-card, #sec8.sec-card, #sec9.sec-card, #sec10.sec-card,
+#sec11.sec-card, #sec12.sec-card, #sec13.sec-card {
+  border-color: var(--sec-border, var(--border-1));
+  transition:
+    border-color .3s var(--ease),
+    box-shadow   .3s var(--ease);
+}
+
+/* Card glow on hover (subtle) */
+.sec-card[data-sec]:hover,
+.sec-card[data-sec].active {
+  box-shadow: 0 4px 24px var(--sec-glow, rgba(37,99,235,.15)), var(--shadow-sm);
+}
+
+/* Section header — coloured gradient stripe */
+.sec-card[data-sec] .sec-hdr,
+#sec1.sec-card .sec-hdr, #sec2.sec-card .sec-hdr,
+#sec3.sec-card .sec-hdr, #sec4.sec-card .sec-hdr,
+#sec5.sec-card .sec-hdr, #sec6.sec-card .sec-hdr,
+#sec7.sec-card .sec-hdr, #sec8.sec-card .sec-hdr,
+#sec9.sec-card .sec-hdr, #sec10.sec-card .sec-hdr,
+#sec11.sec-card .sec-hdr, #sec12.sec-card .sec-hdr, #sec13.sec-card .sec-hdr {
+  background: var(--sec-grad) !important;
+  border-bottom: 1.5px solid var(--sec-border) !important;
+}
+
+/* Section title text — accent colour */
+.sec-card[data-sec] .sec-title {
+  color: var(--sec-accent) !important;
+}
+
+/* Section badge pill — tinted to the section colour */
+.sec-card[data-sec] .sec-badge {
+  background: var(--sec-dim) !important;
+  border-color: var(--sec-border) !important;
+  color: var(--sec-accent) !important;
+}
+
+/* Left accent bar on the card body side */
+.sec-card[data-sec] {
+  border-left-width: 3px !important;
+}
+
+/* Progress-step counter badge inherits section colour */
+.sec-card[data-sec] .step-cnt {
+  background: var(--sec-dim) !important;
+  border-color: var(--sec-border) !important;
+  color: var(--sec-accent) !important;
+}
+
+/* Radio / checkbox selected state follows section colour */
+.sec-card[data-sec] .opt.selected {
+  border-color: var(--sec-accent) !important;
+  background: var(--sec-dim) !important;
+  color: var(--text-1) !important;
+}
+.sec-card[data-sec] .opt:hover {
+  border-color: var(--sec-accent) !important;
+  background: var(--sec-dim) !important;
+}
+.sec-card[data-sec] .opt input {
+  accent-color: var(--sec-accent) !important;
+}
+
+/* Input focus ring follows section colour */
+.sec-card[data-sec] .q-inp:focus,
+.sec-card[data-sec] .q-sel:focus,
+.sec-card[data-sec] .q-ta:focus {
+  border-color: var(--sec-accent) !important;
+  box-shadow: 0 0 0 3px var(--sec-glow) !important;
+}
+
+/* Chip controls */
+.sec-card[data-sec] .chip input[type="radio"]:checked + label,
+.sec-card[data-sec] .chip input[type="checkbox"]:checked + label {
+  background: var(--sec-dim) !important;
+  border-color: var(--sec-border) !important;
+  color: var(--sec-accent) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SECTION 34 — SMOOTH LIGHT / DARK MODE TRANSITIONS
+   Prevents the harsh flash when toggling theme.
+   ══════════════════════════════════════════════════════════════════ */
+
+/*
+  All CSS-variable-driven colour properties transition smoothly.
+  background, color, border-color are the three key axes.
+  We avoid transitioning "all" (breaks layout & transforms).
+*/
+
+html {
+  transition:
+    background-color .35s var(--ease),
+    color            .35s var(--ease);
+}
+
+body {
+  transition:
+    background-color .35s var(--ease),
+    color            .35s var(--ease);
+}
+
+/* Cards & containers */
+.sec-card,
+.sec-hdr,
+.sec-body,
+.topbar,
+.step-bar,
+.bot-nav,
+.drawer,
+.modal,
+.gate-card,
+.trust-footer,
+.adm-stat,
+.adm-chart-card,
+.adm-tbl-wrap,
+.adm-toolbar,
+.info-modal-card,
+.info-modal-hdr,
+#syncModal > div,
+#installModal > div,
+#resume-banner,
+.consent-box,
+.adm-detail-modal,
+.adm-detail-hdr,
+.adm-detail-body {
+  transition:
+    background        .35s var(--ease),
+    background-color  .35s var(--ease),
+    border-color      .35s var(--ease),
+    box-shadow        .35s var(--ease),
+    color             .35s var(--ease);
+}
+
+/* Interactive elements */
+.opt,
+.chip label,
+.q-inp, .q-sel, .q-ta,
+.adm-btn,
+.adm-chip,
+.adm-search,
+.btn-prev,
+.tb-rec,
+.adm-tab,
+.drw-item,
+.gate-input,
+.resume-btn-no,
+.adm-close {
+  transition:
+    background        .25s var(--ease),
+    background-color  .25s var(--ease),
+    border-color      .25s var(--ease),
+    color             .25s var(--ease),
+    box-shadow        .25s var(--ease),
+    transform         .18s var(--ease);
+}
+
+/* Text nodes */
+.sec-title,
+.sec-badge,
+.q-label,
+.q-sub,
+.step-lbl,
+.step-cnt,
+.text-1, .text-2, .text-3,
+.adm-title, .adm-sub,
+.adm-stat-n, .adm-stat-l,
+.trust-lock, .trust-badge {
+  transition: color .35s var(--ease);
+}
+
+/* Progress bar track */
+.prog-bar {
+  transition: background .35s var(--ease);
+}
+
+/* ── Prevent transitions on page-load (avoid flash) ──
+   Add class="no-transition" to <html> on first render,
+   remove it after 100 ms in JS:
+     document.documentElement.classList.remove('no-transition');
+*/
+html.no-transition *,
+html.no-transition *::before,
+html.no-transition *::after {
+  transition: none !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SECTION 35 — LIGHT MODE SURFACE FIXES
+   Patches a few elements that were still rendering dark in light mode.
+   ══════════════════════════════════════════════════════════════════ */
+
+[data-theme="light"] .topbar {
+  background: rgba(255,255,255,.95) !important;
+  border-bottom-color: rgba(0,0,0,.08) !important;
+}
+
+[data-theme="light"] .step-bar {
+  background: var(--bg-raised) !important;
+  border-bottom-color: var(--border-2) !important;
+}
+
+[data-theme="light"] .bot-nav {
+  background: var(--bg-raised) !important;
+  border-top-color: rgba(0,0,0,.07) !important;
+}
+
+[data-theme="light"] .btn-prev {
+  background: rgba(0,0,0,.05) !important;
+  border-color: rgba(0,0,0,.12) !important;
+  color: var(--text-2) !important;
+}
+[data-theme="light"] .btn-prev:hover {
+  background: rgba(0,0,0,.09) !important;
+}
+
+[data-theme="light"] .sec-card {
+  background: #ffffff !important;
+  box-shadow: 0 2px 12px rgba(0,0,0,.07) !important;
+}
+
+[data-theme="light"] .sec-body {
+  background: #ffffff !important;
+}
+
+[data-theme="light"] .opt {
+  background: #f7f8fa !important;
+  border-color: rgba(0,0,0,.10) !important;
+  color: var(--text-2) !important;
+}
+[data-theme="light"] .opt:hover {
+  background: var(--sec-dim, rgba(37,99,235,.06)) !important;
+  color: var(--text-1) !important;
+}
+[data-theme="light"] .opt.selected {
+  background: var(--sec-dim, rgba(37,99,235,.07)) !important;
+  border-color: var(--sec-accent, #2563eb) !important;
+  color: var(--text-1) !important;
+}
+
+[data-theme="light"] .q-sel {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2354656f' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+[data-theme="light"] .prog-bar {
+  background: rgba(0,0,0,.07) !important;
+}
+
+[data-theme="light"] .sec-card[data-sec] .sec-hdr,
+[data-theme="light"] #sec1.sec-card .sec-hdr,
+[data-theme="light"] #sec2.sec-card .sec-hdr,
+[data-theme="light"] #sec3.sec-card .sec-hdr,
+[data-theme="light"] #sec4.sec-card .sec-hdr,
+[data-theme="light"] #sec5.sec-card .sec-hdr,
+[data-theme="light"] #sec6.sec-card .sec-hdr,
+[data-theme="light"] #sec7.sec-card .sec-hdr,
+[data-theme="light"] #sec8.sec-card .sec-hdr,
+[data-theme="light"] #sec9.sec-card .sec-hdr,
+[data-theme="light"] #sec10.sec-card .sec-hdr,
+[data-theme="light"] #sec11.sec-card .sec-hdr,
+[data-theme="light"] #sec12.sec-card .sec-hdr,
+[data-theme="light"] #sec13.sec-card .sec-hdr {
+  border-bottom-width: 1px !important;
+}
+
+/* Keep sec-title readable on light pastel headers */
+[data-theme="light"] .sec-card[data-sec] .sec-title {
+  /* darken the accent slightly for sufficient contrast on pale bg */
+  filter: brightness(.82);
+}
+
+[data-theme="light"] .trust-footer {
+  background: var(--bg-raised) !important;
+  border-top-color: rgba(0,0,0,.08) !important;
+}
+
+[data-theme="light"] .offline-bar {
+  background: rgba(245,158,11,.1) !important;
+  border-bottom-color: rgba(245,158,11,.25) !important;
+}
+
+[data-theme="light"] .sync-bar {
+  background: rgba(37,99,235,.07) !important;
+  border-bottom-color: rgba(37,99,235,.18) !important;
+  color: #1d4ed8 !important;
+}
+
+/* ── Chip label fix in light mode ── */
+[data-theme="light"] .chip label {
+  background: #f0f2f5 !important;
+  border-color: rgba(0,0,0,.12) !important;
+  color: var(--text-2) !important;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════
+   SECTION 36 — GUIDANCE TICKER (type + slide-up, JS-driven)
+   Replaces the sideways-scrolling ribbon entirely.
+   Each message types in character by character, pauses, then the
+   text slides upward and a new message types in from below.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Container — fixed height, clips overflow so slide works */
+.sec-ticker {
+  height: 38px;
+  overflow: hidden;
+  position: relative;
+  background: var(--sec-dim, rgba(37,99,235,.07));
+  border-top: 1px solid var(--sec-border, rgba(37,99,235,.15));
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* Fade masks on edges */
+.sec-ticker::before,
+.sec-ticker::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 20px;
+  z-index: 2;
+  pointer-events: none;
+}
+.sec-ticker::before {
+  left: 0;
+  background: linear-gradient(to right, var(--bg-card, #0d1826), transparent);
+}
+.sec-ticker::after {
+  right: 0;
+  background: linear-gradient(to left, var(--bg-card, #0d1826), transparent);
+}
+[data-theme="light"] .sec-ticker::before {
+  background: linear-gradient(to right, #ffffff, transparent);
+}
+[data-theme="light"] .sec-ticker::after {
+  background: linear-gradient(to left, #ffffff, transparent);
+}
+
+/* The text element — JS writes into this */
+.sec-ticker-text {
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--text-2);
+  letter-spacing: .01em;
+  white-space: nowrap;
+  line-height: 38px;
+  /* slide-up exit */
+  transition: transform .38s cubic-bezier(.4,0,.2,1), opacity .3s ease;
+  will-change: transform, opacity;
+}
+
+/* Blinking cursor appended by JS */
+.sec-ticker-cursor {
+  display: inline-block;
+  width: 2px;
+  height: .9em;
+  background: var(--sec-accent, var(--blue-mid));
+  margin-left: 2px;
+  vertical-align: middle;
+  animation: mssTickerBlink .7s step-end infinite;
+  border-radius: 1px;
+}
+@keyframes mssTickerBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* Slide-out state (JS adds .ticker-exit) */
+.sec-ticker-text.ticker-exit {
+  transform: translateY(-38px);
+  opacity: 0;
+}
+
+/* Slide-in start position (JS sets this before animating in) */
+.sec-ticker-text.ticker-enter {
+  transform: translateY(38px);
+  opacity: 0;
+  transition: none !important;
+}
+
+/* Slide-in active (JS adds .ticker-enter-active) */
+.sec-ticker-text.ticker-enter-active {
+  transform: translateY(0);
+  opacity: 1;
+  transition: transform .38s cubic-bezier(.4,0,.2,1), opacity .3s ease !important;
+}
+
+/* Light mode text */
+[data-theme="light"] .sec-ticker-text {
+  color: var(--text-mid, #54656f);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SECTION 38 — CHIP & OPT SELECTION FIXES (all question types)
+   Uses JS data-checked attr + CSS :has() + sibling selector for
+   maximum compatibility across all mobile browsers.
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Section-accent colour for checked chips */
+.sec-card[data-sec] .chip input[type="radio"]:checked + label,
+.sec-card[data-sec] .chip input[type="checkbox"]:checked + label,
+.sec-card[data-sec] .chip[data-checked="true"] label,
+.sec-card[data-sec] .chip:has(input:checked) label {
+  background: var(--sec-dim, rgba(37,99,235,.15)) !important;
+  border-color: var(--sec-accent, var(--blue-mid)) !important;
+  color: var(--text-1) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 0 0 2px var(--sec-glow, rgba(37,99,235,.25)) !important;
+}
+.sec-card[data-sec] .chip input[type="radio"]:checked + label::before,
+.sec-card[data-sec] .chip[data-checked="true"]:has(input[type="radio"]) label::before,
+.sec-card[data-sec] .chip:has(input[type="radio"]:checked) label::before {
+  background: var(--sec-accent, var(--blue-mid)) !important;
+  border-color: var(--sec-accent, var(--blue-mid)) !important;
+  box-shadow: inset 0 0 0 3px var(--bg-card) !important;
+}
+
+/* Section-accent colour for opt lists */
+.sec-card[data-sec] .opt.selected,
+.sec-card[data-sec] .opt:has(input:checked),
+.sec-card[data-sec] .opt[data-checked="true"] {
+  border-color: var(--sec-accent, var(--blue-mid)) !important;
+  background: var(--sec-dim, rgba(37,99,235,.08)) !important;
+  box-shadow: 0 0 0 2px var(--sec-glow, rgba(37,99,235,.15)) !important;
+}
+
+/* Uncheck animation — smooth deselect */
+.chip label, .opt {
+  transition: all .18s cubic-bezier(.4,0,.2,1) !important;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   STUDENT SETTINGS MODAL — touch & interaction states
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* All tappable rows in the settings sheet */
+#student-settings-modal button,
+#student-settings-modal [onclick] {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .12s cubic-bezier(.4,0,.2,1),
+              background .12s ease,
+              border-color .12s ease,
+              opacity .12s ease !important;
+  will-change: transform;
+}
+
+/* Standard rows (install, about, help, terms) */
+#student-settings-modal button:not([style*="f87171"]):not([style*="fbbf24"]):active {
+  transform: scale(.97) !important;
+  background: rgba(255,255,255,.11) !important;
+  border-color: rgba(255,255,255,.18) !important;
+}
+
+/* Clear empty records row — amber */
+#student-settings-modal button[style*="fbbf24"]:active {
+  transform: scale(.97) !important;
+  background: rgba(251,191,36,.14) !important;
+  border-color: rgba(251,191,36,.35) !important;
+}
+
+/* Sign out row — red */
+#student-settings-modal button[style*="f87171"]:active {
+  transform: scale(.97) !important;
+  background: rgba(248,113,113,.14) !important;
+  border-color: rgba(248,113,113,.38) !important;
+}
+
+/* Theme toggle row */
+#student-settings-modal [onclick*="toggleDark"]:active {
+  transform: scale(.97) !important;
+  background: rgba(255,255,255,.1) !important;
+}
+
+/* Close button */
+#student-settings-modal button[onclick*="closeStudentSettings"]:active {
+  transform: scale(.88) !important;
+  background: rgba(255,255,255,.2) !important;
+}
+
+/* Icon box — subtle pop when row is pressed */
+#student-settings-modal button:active > div[style*="36px"] {
+  transform: scale(.9);
+  transition: transform .1s ease;
+}
+
+/* Chevron arrow — shift right slightly on press */
+#student-settings-modal button:active > svg:last-child {
+  transform: translateX(3px);
+  transition: transform .12s ease;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   FAB POINTER-EVENTS FIX
+   Container is invisible to touch — only the visible button catches taps.
+   ───────────────────────────────────────────────────────────────────────────── */
+#survey-fab-wrap {
+  pointer-events: none !important;
+}
+#survey-fab-btn {
+  pointer-events: auto !important;
 }

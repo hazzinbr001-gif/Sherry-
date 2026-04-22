@@ -34,7 +34,7 @@ async function _getStudentDetails(fullName){
     const sess = JSON.parse(localStorage.getItem('chsa_auth')||'null');
     if(sess && sess.full_name && matches(sess.full_name, fullName))
       return sess;
-  }catch(e){}
+  }catch(e){ console.error('[_getStudentDetails] session parse error:', e); }
 
   // 3. Live fetch via secure API — try loading all students and filtering
   try{
@@ -46,7 +46,7 @@ async function _getStudentDetails(fullName){
                || students.find(s=>matches(s.full_name, fullName));
       if(hit) return hit;
     }
-  }catch(e){}
+  }catch(e){ console.error('[_getStudentDetails] HSAdmin.getStudents error:', e); }
 
   return {full_name: fullName||'Unknown', reg_number:'—', email:'—'};
 }
@@ -290,23 +290,50 @@ table.dt tfoot td{
 //  HELPERS
 // 
 function _pct(a,b){return b>0?Math.round(a/b*100):0;}
-function _cnt(arr,f,v){return arr.filter(r=>r[f]===v).length;}
-function _avg(arr,f){const v=arr.map(r=>parseInt(r[f])||0).filter(x=>x>0);return v.length?Math.round(v.reduce((a,b)=>a+b)/v.length):0;}
+// _rfield: reads from flat record OR raw_json (handles both storage formats)
+function _rfield(r,f){
+  if(r[f]!==undefined&&r[f]!==null) return r[f];
+  try{
+    const raw=r._rawParsed||(r._rawParsed=typeof r.raw_json==='string'?JSON.parse(r.raw_json||'{}'):(r.raw_json||{}));
+    return raw[f]??null;
+  }catch(e){return null;}
+}
+// Field name aliases: flat export names → raw_json field names
+const _FIELD_MAP={
+  latrine:'g_latrine', water_treated:'h_treat', hiv_heard:'f_heard',
+  hiv_tested:'f_tested', deaths_5yr:'c_deaths', deaths_count:'c_deaths_n',
+  house_type:'b_type', respondent_gender:'a_gender', respondent_age:'a_age',
+  illnesses:'c_ill', location:'interview_location'
+};
+function _rget(r,f){
+  const v=_rfield(r,f);
+  if(v!==null&&v!==undefined) return v;
+  const alt=_FIELD_MAP[f];
+  return alt?_rfield(r,alt):null;
+}
+function _cnt(arr,f,v){return arr.filter(r=>_rget(r,f)===v).length;}
+function _avg(arr,f){const v=arr.map(r=>parseInt(_rget(r,f))||0).filter(x=>x>0);return v.length?Math.round(v.reduce((a,b)=>a+b)/v.length):0;}
 function _ills(arr){
   const c={};
-  arr.forEach(r=>(r.illnesses||'').split(',').forEach(x=>{const k=x.trim();if(k&&k!=='None')c[k]=(c[k]||0)+1;}));
+  arr.forEach(r=>{
+    const val=_rget(r,'illnesses')||_rget(r,'c_ill')||'';
+    [].concat(val).forEach(x=>String(x).split(',').forEach(seg=>{const k=seg.trim();if(k&&k.toLowerCase()!=='none'&&k.length>1)c[k]=(c[k]||0)+1;}));
+  });
   return Object.entries(c).sort((a,b)=>b[1]-a[1]);
 }
 function _flags(r){
   const f=[];
-  if(r.latrine==='No')       f.push('No pit latrine — open defecation risk');
-  if(r.water_treated==='No') f.push('Untreated drinking water');
-  if(r.hiv_heard==='No')     f.push('No HIV/AIDS awareness');
+  const lat=_rget(r,'g_latrine')||_rget(r,'latrine');
+  const wat=_rget(r,'h_treat')||_rget(r,'water_treated');
+  const hiv=_rget(r,'f_heard')||_rget(r,'hiv_heard');
+  if(lat==='No')  f.push('No pit latrine — open defecation risk');
+  if(wat==='No')  f.push('Untreated drinking water');
+  if(hiv==='No')  f.push('No HIV/AIDS awareness');
   try{
-    const raw=typeof r.raw_json==='string'?JSON.parse(r.raw_json||'{}'):(r.raw_json||{});
+    const raw=r._rawParsed||(r._rawParsed=typeof r.raw_json==='string'?JSON.parse(r.raw_json||'{}'):(r.raw_json||{}));
     if(raw.i_circ==='Female'||raw.i_circ==='Both') f.push('FGM reported — requires referral');
     if(raw.b_smoke_in==='Yes') f.push('Indoor smoking — passive smoke risk');
-  }catch(e){}
+  }catch(e){ console.error('[_riskFlags] raw_json parse error:', e); }
   return f;
 }
 const S=(p,t)=>p>=t
@@ -316,6 +343,25 @@ const S=(p,t)=>p>=t
 // Page header
 function _getInstName(){
   try{ return JSON.parse(localStorage.getItem('chsa_auth')||'null')?.institution_name || 'Medical Survey System (MSS)'; }catch(e){ return 'Medical Survey System (MSS)'; }
+}
+
+// Cached institution profile — fetched once per report session from institution_profiles table.
+// Returns { inst_name, admin_name, contact_email, contact_phone, county, sub_county, ward,
+//           village_list, login_date, survey_enabled } or {} on failure.
+let _instProfileCache = null;
+async function _fetchInstProfile() {
+  if (_instProfileCache) return _instProfileCache;
+  try {
+    const sess = JSON.parse(localStorage.getItem('chsa_auth') || 'null');
+    const institution_id = sess?.institution_id;
+    if (!institution_id) return {};
+    if (window.HS?.HSAdmin?.getInstitutionProfile) {
+      const prof = await window.HS.HSAdmin.getInstitutionProfile(institution_id);
+      _instProfileCache = prof || {};
+      return _instProfileCache;
+    }
+  } catch (e) { console.error('[_fetchInstProfile] error:', e); }
+  return {};
 }
 function _hdr(docName, type, date){
   const org = _getInstName();
@@ -372,13 +418,44 @@ function _fl(lvl, title, body){
   return '<div class="'+cls+'"><div class="ft">'+ico+' '+title+'</div><div class="fb">'+body+'</div></div>';
 }
 // Cover page
-function _cover(title, subtitle, metaRows, reportType, idCard){
+// prof: optional institution profile object { logo_url, banner_url, group_photo_url, county, sub_county, ward, village_list }
+function _cover(title, subtitle, metaRows, reportType, idCard, prof){
   const now=new Date().toLocaleDateString('en-KE',{year:'numeric',month:'long',day:'numeric'});
   const org = _getInstName();
+  prof = prof || {};
+
+  // Banner image (top strip of cover body) — institution banner or group photo
+  const bannerImg = prof.banner_url || prof.group_photo_url || '';
+  const bannerBlock = bannerImg
+    ? '<div style="width:100%;max-width:3.5in;height:72pt;border-radius:6pt;overflow:hidden;margin-bottom:10pt;border:1.5px solid #cce0d4;-webkit-print-color-adjust:exact;print-color-adjust:exact">'
+      +'<img src="'+bannerImg+'" style="width:100%;height:100%;object-fit:cover" crossorigin="anonymous"/>'
+      +'</div>'
+    : '';
+
+  // Logo — left of emblem circle
+  const logoBlock = prof.logo_url
+    ? '<div style="width:50pt;height:50pt;border-radius:10pt;overflow:hidden;margin-bottom:8pt;border:2px solid #cce0d4;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact">'
+      +'<img src="'+prof.logo_url+'" style="width:100%;height:100%;object-fit:contain" crossorigin="anonymous"/>'
+      +'</div>'
+    : '<div class="cov-emb"><svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M24 10L24 38M10 24L38 24" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="24" cy="24" r="14" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2"/></svg></div>';
+
+  // Location rows from profile
+  const locRows=[];
+  if(prof.county)      locRows.push(['County', prof.county]);
+  if(prof.sub_county)  locRows.push(['Sub-County', prof.sub_county]);
+  if(prof.ward)        locRows.push(['Ward', prof.ward]);
+  if(prof.village_list){
+    const vl=Array.isArray(prof.village_list)?prof.village_list.join(', '):String(prof.village_list);
+    if(vl) locRows.push(['Villages / Areas', vl]);
+  }
+
+  const allMeta=[...metaRows, ...locRows];
+
   return '<div class="cover">'
     +'<div class="cov-band"></div>'
     +'<div class="cov-body">'
-    +'<div class="cov-emb"><svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><path d="M24 10L24 38M10 24L38 24" stroke="#fff" stroke-width="5" stroke-linecap="round"/><circle cx="24" cy="24" r="14" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2"/></svg></div>'
+    +bannerBlock
+    +logoBlock
     +'<div class="cov-min">Republic of Kenya &nbsp;&middot;&nbsp; Ministry of Health</div>'
     +'<div class="cov-uni">'+org+'</div>'
     +'<div class="cov-rule"></div>'
@@ -387,7 +464,7 @@ function _cover(title, subtitle, metaRows, reportType, idCard){
     +'<div class="cov-sub">'+subtitle+'</div>'
     +(idCard||'')
     +'<div class="cov-box" style="margin-top:10pt">'
-    +metaRows.map(([k,v])=>'<div class="cov-row"><span class="cov-k">'+k+'</span><span class="cov-v">'+(v||'&mdash;')+'</span></div>').join('')
+    +allMeta.map(([k,v])=>'<div class="cov-row"><span class="cov-k">'+k+'</span><span class="cov-v">'+(v||'&mdash;')+'</span></div>').join('')
     +'<div class="cov-row"><span class="cov-k">Date Generated</span><span class="cov-v">'+now+'</span></div>'
     +'</div>'
     +'<p class="cov-note">Produced under the Community Health Situation Analysis programme at '+org+'.</p>'
@@ -419,6 +496,344 @@ function _sigs(people){
 }
 
 
+// ─── STUDENT REPORT HELPERS ───────────────────────────────────────────────────
+// Used by buildBriefReport / buildFullReport / buildIMRaDReport.
+// These were referenced throughout but never defined — root cause of all three
+// student report types silently producing "X is not defined" runtime errors.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Shared base CSS injected into every student report <style> block.
+// Includes @page (A4 portrait) and full @media print rules.
+const RPT_BASE_CSS = `
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,600;0,700;0,800;1,400&family=Merriweather:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{background:linear-gradient(160deg,#0d1b2a 0%,#1a2e44 50%,#0d2233 100%)!important;min-height:100%;}
+body{
+  font-family:'DM Sans',Arial,sans-serif;
+  font-size:9.5pt;color:#111;
+  background:linear-gradient(160deg,#0d1b2a 0%,#1a2e44 50%,#0d2233 100%);
+  padding:0.2in 0;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+
+/* ── COVER PAGE ─────────────────────────────── */
+.rpt-cover{
+  width:210mm;min-height:297mm;
+  display:flex;flex-direction:column;
+  background:#fff;margin:0 auto 0.15in;
+  box-shadow:0 4px 20px rgba(0,0,0,.22);
+  overflow:hidden;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+.rpt-cov-band{
+  height:0.28in;
+  background:linear-gradient(90deg,#0a3d1f,#1a5c35,#1a4060);
+  flex-shrink:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+.rpt-cov-body{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:0.35in 1in 0.25in;text-align:center;
+}
+.rpt-cov-emblem{
+  width:58pt;height:58pt;border-radius:50%;
+  background:linear-gradient(145deg,#1a5c35,#1a4060);
+  display:flex;align-items:center;justify-content:center;
+  margin:0 auto 10pt;
+  box-shadow:0 4px 18px rgba(26,92,53,.4);
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+.rpt-cov-emblem svg{width:30pt;height:30pt;}
+.rpt-cov-ministry{font-size:6.5pt;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#6b8a74;margin-bottom:3pt;}
+.rpt-cov-inst{font-size:12pt;font-weight:800;color:#1a5c35;margin-bottom:9pt;line-height:1.2;}
+.rpt-cov-rule{width:36pt;height:2.5pt;background:linear-gradient(90deg,#1a5c35,#1a4060);margin:0 auto 10pt;border-radius:99pt;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.rpt-cov-rtype{font-size:6.5pt;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:#999;margin-bottom:7pt;}
+.rpt-cov-title{font-size:19pt;font-weight:800;color:#0f1f18;line-height:1.15;margin-bottom:5pt;}
+.rpt-cov-sub{font-size:10pt;color:#3a5a4a;margin-bottom:16pt;line-height:1.45;}
+.rpt-cov-idcard{
+  background:linear-gradient(135deg,#0d3b66,#1a5fa8);
+  border-radius:10pt;padding:12pt 18pt;width:100%;max-width:3.5in;
+  text-align:center;margin-bottom:12pt;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+.rpt-cov-idcard-name{color:#fff;font-size:14pt;font-weight:800;letter-spacing:-.02em;}
+.rpt-cov-idcard-reg{color:rgba(255,255,255,.8);font-size:8pt;font-weight:600;margin-top:3pt;letter-spacing:.5px;}
+.rpt-cov-idcard-role{display:inline-block;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);border-radius:99pt;padding:2.5pt 9pt;font-size:6pt;color:rgba(255,255,255,.85);margin-top:6pt;font-weight:700;letter-spacing:1px;text-transform:uppercase;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.rpt-cov-meta{background:#f4f8f5;border:1px solid #cce0d4;border-radius:5pt;padding:9pt 14pt;width:100%;max-width:3.5in;text-align:left;margin-bottom:10pt;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.rpt-cov-row{display:flex;justify-content:space-between;align-items:flex-start;padding:3pt 0;border-bottom:1px solid #e0ede5;font-size:7pt;}
+.rpt-cov-row:last-child{border-bottom:none;}
+.rpt-cov-k{color:#6b8a74;font-weight:700;flex-shrink:0;margin-right:6pt;}
+.rpt-cov-v{color:#1a2b22;font-weight:600;text-align:right;word-break:break-word;max-width:60%;}
+.rpt-cov-note{font-size:6pt;color:#aaa;max-width:3.5in;line-height:1.6;margin-bottom:8pt;}
+.rpt-cov-bot{
+  height:0.46in;background:#f4f8f5;border-top:2px solid #1a5c35;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 0.6in;font-size:5.5pt;color:#6b8a74;flex-shrink:0;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+
+/* ── CONTENT PAGE ───────────────────────────── */
+.page{
+  width:210mm;min-height:297mm;
+  background:#fff;margin:0 auto 0.15in;
+  box-shadow:0 4px 20px rgba(0,0,0,.18);
+  overflow:hidden;display:flex;flex-direction:column;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+.page-stripe{height:4px;background:linear-gradient(90deg,#1a5c35,#1a4060);flex-shrink:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+
+/* Running header */
+.rpt-hdr{
+  background:linear-gradient(135deg,#0a3d1f,#1a5c35);color:#fff;
+  padding:11px 28px 9px;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  flex-shrink:0;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+.rpt-hdr-left{flex:1;}
+.rpt-hdr-org{font-size:6.5pt;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;opacity:.75;margin-bottom:2px;}
+.rpt-hdr-title{font-size:12pt;font-weight:800;line-height:1.2;margin-bottom:2px;}
+.rpt-hdr-sub{font-size:7pt;opacity:.7;}
+.rpt-hdr-badge{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:99px;padding:4px 12px;font-size:6.5pt;font-weight:700;letter-spacing:.5px;white-space:nowrap;margin-left:14px;margin-top:4px;}
+
+/* Metadata strip */
+.rpt-meta{background:#f4f8f5;border-bottom:1.5px solid #cce0d4;padding:7px 28px;flex-shrink:0;}
+.rpt-meta table{width:100%;border-collapse:collapse;font-size:7.5pt;}
+.rpt-meta td{padding:2.5px 8px 2.5px 0;color:#555;}
+.rpt-meta td:first-child{font-weight:700;color:#1a5c35;width:28%;white-space:nowrap;}
+
+/* Body */
+.body{flex:1;padding:14px 28px 10px;overflow:hidden;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;}
+
+/* Section bar */
+.rpt-sec{
+  font-size:7pt;font-weight:800;text-transform:uppercase;letter-spacing:.7px;
+  color:#fff;background:linear-gradient(135deg,#1a5c35,#1a4060);
+  padding:4.5px 11px;margin:14px 0 8px;border-radius:3px;
+  display:flex;align-items:center;gap:6px;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+
+/* Stat tiles */
+.rpt-stat{background:#f9fafb;border:1px solid #e5e7eb;border-top:2.5px solid #1a5c35;border-radius:6px;padding:7px 10px;font-size:8pt;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.rpt-stat-lbl{color:#6b7280;font-size:6.5pt;font-weight:700;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px;}
+.rpt-stat-val{font-weight:700;color:#1a2b22;font-size:9.5pt;}
+.rpt-stat.red{border-top-color:#c0392b;background:#fdf4f4;}
+.rpt-stat.amber{border-top-color:#e67e22;background:#fefbf4;}
+
+/* Flag boxes */
+.rpt-flag{padding:8px 12px;border-radius:6px;font-size:8pt;margin-bottom:6px;line-height:1.5;}
+.rpt-flag-red  {background:#fdecea;border-left:3.5px solid #c0392b;color:#7b241c;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.rpt-flag-amber{background:#fff8e1;border-left:3.5px solid #f39c12;color:#7d4e00;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.rpt-flag-ok   {background:#e8f5ed;border-left:3.5px solid #1a5c35;color:#1a5c35;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+
+/* Data table */
+table.rpt-tbl{width:100%;border-collapse:collapse;font-size:7.5pt;margin-bottom:8px;}
+table.rpt-tbl thead th{background:#1a5c35;color:#fff;padding:4pt 6pt;font-weight:700;font-size:7pt;text-align:left;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+table.rpt-tbl tbody td{padding:3.5pt 6pt;border-bottom:1px solid #e8f0e8;vertical-align:top;}
+table.rpt-tbl tbody tr:nth-child(even) td{background:#f6fbf6;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+table.rpt-tbl tbody td.lbl{font-weight:600;color:#1a5c35;}
+table.rpt-tbl tbody td.c{text-align:center;}
+
+/* Narrative body text */
+p.rpt-p{font-size:8.5pt;line-height:1.65;color:#1a2b22;margin-bottom:6pt;}
+p.rpt-note{font-size:7pt;color:#6b8a74;font-style:italic;margin-bottom:4pt;}
+
+/* Summary box */
+.summary-box{background:linear-gradient(135deg,#f9f7f4,#edf5ee);border:1px solid #cce0d4;border-radius:10px;padding:13px 16px;margin-bottom:14px;}
+.summary-text{font-size:8.5pt;line-height:1.72;color:#1a2b22;}
+.summary-text b{color:#1a5c35;}
+.summary-text .red{color:#c0392b;font-weight:700;}
+
+/* Signatures */
+.rpt-sigs{display:flex;gap:20px;margin:18px 0 8px;padding-top:12px;border-top:1px solid #cce0d4;}
+.rpt-sig{flex:1;}
+.rpt-sig-line{border-bottom:1px solid #333;height:20px;margin-bottom:3px;}
+.rpt-sig-name{font-size:7pt;font-weight:700;color:#1a2b22;}
+.rpt-sig-role{font-size:6pt;color:#888;margin-top:1px;}
+
+/* Print button */
+.rpt-print-bar{text-align:center;padding:16px 0 20px;background:#f4f8f5;border-top:1px solid #cce0d4;flex-shrink:0;}
+.rpt-print-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 30px;background:linear-gradient(135deg,#1a5c35,#1a4060);color:#fff;border:none;border-radius:9px;font-family:inherit;font-size:.88rem;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(26,92,53,.3);}
+
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;}
+  html,body{background:#fff!important;margin:0!important;padding:0!important;}
+  .rpt-cover,.page{
+    width:100%!important;min-height:unset!important;
+    margin:0!important;padding:0!important;
+    border-radius:0!important;box-shadow:none!important;
+    page-break-after:always!important;
+  }
+  .rpt-cover:last-child,.page:last-child{page-break-after:auto!important;}
+  .rpt-print-bar{display:none!important;}
+}
+@page{size:A4 portrait;margin:0;}
+`;
+
+// Page header banner
+function rptHeader(org, title, sub, accentLeft, accentRight){
+  const _org = org || _getInstName();
+  const _acL = accentLeft  || '#0a3d1f';
+  const _acR = accentRight || '#1a5c35';
+  return `<div class="rpt-hdr" style="background:linear-gradient(135deg,${_acL},${_acR})">
+    <div class="rpt-hdr-left">
+      <div class="rpt-hdr-org">${_org} &nbsp;&middot;&nbsp; Ministry of Health Kenya</div>
+      <div class="rpt-hdr-title">${title||'Health Report'}</div>
+      <div class="rpt-hdr-sub">${sub||''}</div>
+    </div>
+    <div class="rpt-hdr-badge">CONFIDENTIAL</div>
+  </div>`;
+}
+
+// Metadata strip — key/value table
+function rptMeta(rows){
+  return `<div class="rpt-meta"><table><tbody>${
+    rows.map(([k,v])=>`<tr><td>${k}</td><td>${v||'&mdash;'}</td></tr>`).join('')
+  }</tbody></table></div>`;
+}
+
+// Bold section heading bar
+function rptSec(label){
+  return `<div class="rpt-sec">${label}</div>`;
+}
+
+// Single key-value stat tile
+function rptStat(label, value){
+  const v = (value===undefined||value===null||value==='')?'&mdash;':value;
+  return `<div class="rpt-stat"><div class="rpt-stat-lbl">${label}</div><div class="rpt-stat-val">${v}</div></div>`;
+}
+
+// Coloured flag/alert box  level: 'red' | 'amber' | 'ok'
+function rptFlag(text, level){
+  const cls = level==='red'?'rpt-flag-red':level==='amber'?'rpt-flag-amber':'rpt-flag-ok';
+  return `<div class="rpt-flag ${cls}">${text}</div>`;
+}
+
+// Signature block
+function rptSig(){
+  const org = _getInstName();
+  return `<div class="rpt-sigs">
+    <div class="rpt-sig"><div class="rpt-sig-line"></div><div class="rpt-sig-name">Interviewer</div><div class="rpt-sig-role">Community Health Interviewer &middot; ${org}</div></div>
+    <div class="rpt-sig"><div class="rpt-sig-line"></div><div class="rpt-sig-name">Supervisor</div><div class="rpt-sig-role">Faculty Supervisor &middot; ${org}</div></div>
+    <div class="rpt-sig"><div class="rpt-sig-line"></div><div class="rpt-sig-name">Course Coordinator</div><div class="rpt-sig-role">Community Health &middot; ${org}</div></div>
+  </div>`;
+}
+
+// Print button bar at bottom of every student report
+function rptPrintBtn(){
+  return `<div class="rpt-print-bar">
+    <button class="rpt-print-btn" onclick="window.print()">&#128438; Print / Save as PDF</button>
+    <div style="font-size:7pt;color:#888;margin-top:6px;">Browser Print &rarr; Save as PDF &rarr; A4 Portrait</div>
+  </div>`;
+}
+
+// ── STUDENT REPORT COVER PAGE ─────────────────────────────────────────────
+// Generates a full A4 cover page for Brief / Full / IMRaD student reports.
+// reportType: 'BRIEF REPORT' | 'FULL REPORT' | 'IMRaD REPORT'
+// accentA/B: gradient colours for the ID card
+function buildStudentCoverPage(r, reportType, accentA, accentB){
+  const now   = new Date().toLocaleDateString('en-KE',{year:'numeric',month:'long',day:'numeric'});
+  const inst  = _getInstName();
+  const name  = r.interviewer_name || getUserName() || '—';
+  const date  = r.interview_date   || now;
+  const loc   = r.interview_location || r.interview_location_custom || '—';
+  const resp  = `${r.a_age||'?'} yrs · ${r.a_gender||'?'} · ${r.a_marital||'?'}`;
+  accentA = accentA||'#0d3b66'; accentB = accentB||'#1a5fa8';
+  return `
+<div class="rpt-cover">
+  <div class="rpt-cov-band"></div>
+  <div class="rpt-cov-body">
+    <div class="rpt-cov-emblem">
+      <svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+        <path d="M24 10L24 38M10 24L38 24" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+        <circle cx="24" cy="24" r="14" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2"/>
+      </svg>
+    </div>
+    <div class="rpt-cov-ministry">Republic of Kenya &nbsp;&middot;&nbsp; Ministry of Health</div>
+    <div class="rpt-cov-inst">${inst}</div>
+    <div class="rpt-cov-rule"></div>
+    <div class="rpt-cov-rtype">${reportType}</div>
+    <div class="rpt-cov-title">Community Health<br>Situation Analysis</div>
+    <div class="rpt-cov-sub">Household Interview Report</div>
+    <div class="rpt-cov-idcard" style="background:linear-gradient(135deg,${accentA},${accentB})">
+      <div class="rpt-cov-idcard-name">${name}</div>
+      <div class="rpt-cov-idcard-reg">Community Health Interviewer</div>
+      <div class="rpt-cov-idcard-role">${inst}</div>
+    </div>
+    <div class="rpt-cov-meta">
+      <div class="rpt-cov-row"><span class="rpt-cov-k">Interview Date</span><span class="rpt-cov-v">${date}</span></div>
+      <div class="rpt-cov-row"><span class="rpt-cov-k">Location</span><span class="rpt-cov-v">${loc}</span></div>
+      <div class="rpt-cov-row"><span class="rpt-cov-k">Respondent</span><span class="rpt-cov-v">${resp}</span></div>
+      <div class="rpt-cov-row"><span class="rpt-cov-k">Date Generated</span><span class="rpt-cov-v">${now}</span></div>
+    </div>
+    <p class="rpt-cov-note">Produced under the Community Health Situation Analysis programme at ${inst}.<br>CONFIDENTIAL — For Official Use Only</p>
+  </div>
+  <div class="rpt-cov-bot">
+    <div style="display:flex;align-items:center;gap:5px">
+      <svg width="13" height="13" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="7" fill="#1a5c35"/><path d="M24 10L24 38M10 24L38 24" stroke="#fff" stroke-width="6" stroke-linecap="round"/></svg>
+      <strong style="color:#1a5c35;font-size:6pt">Medical Survey System (MSS) v3.1</strong>
+    </div>
+    <div>Built by HazzinBR &middot; ${inst}</div>
+    <div>Confidential &mdash; For Official Use Only</div>
+  </div>
+</div>`;
+}
+
+// Extract red flags and amber concerns from a raw survey record
+function extractFlags(r){
+  const flags=[], concerns=[];
+  if(r.g_latrine==='No')                      flags.push('No pit latrine — open defecation risk');
+  if(r.h_treat==='No')                        flags.push('Untreated drinking water');
+  if(r.f_heard==='No')                        flags.push('No HIV/AIDS awareness');
+  if(r.i_circ==='Female'||r.i_circ==='Both') flags.push('FGM reported — requires referral');
+  if(r.b_smoke_in==='Yes')                    flags.push('Indoor smoking — passive smoke risk');
+  if(r.c_deaths==='Yes')                      concerns.push('Household deaths in past 5 years reported');
+  if(r.e_enough==='No')                       concerns.push('Food insufficiency — possible malnutrition risk');
+  if(r.e_skip==='Yes')                        concerns.push('Household skips meals');
+  if(r.f_tested!=='Yes')                      concerns.push('Respondent has not been tested for HIV');
+  if(r.b_type==='Temporary')                  concerns.push('Temporary housing — environmental health risk');
+  const ills=[].concat(r.c_ill||[]).filter(Boolean);
+  if(ills.length)                             concerns.push('Illness reported: '+ills.join(', '));
+  return {flags, concerns};
+}
+
+// SVG pie/donut chart — items: [{label, val, col}], size: px
+function _pie(items, size){
+  const sz = size||100;
+  const total = items.reduce((s,x)=>s+(x.val||0),0);
+  if(!total) return '<div style="font-size:7pt;color:#aaa">No data</div>';
+  const r=sz*0.38, cx=sz/2, cy=sz/2;
+  let svgParts='', legendParts='', angle=-Math.PI/2;
+  items.forEach(item=>{
+    const pct=(item.val||0)/total;
+    const sweep=pct*2*Math.PI;
+    const x1=cx+r*Math.cos(angle), y1=cy+r*Math.sin(angle);
+    angle+=sweep;
+    const x2=cx+r*Math.cos(angle), y2=cy+r*Math.sin(angle);
+    const large=sweep>Math.PI?1:0;
+    svgParts+=`<path d="M${cx},${cy} L${x1.toFixed(2)},${y1.toFixed(2)} A${r},${r} 0 ${large},1 ${x2.toFixed(2)},${y2.toFixed(2)} Z" fill="${item.col||'#888'}" stroke="#fff" stroke-width="1"/>`;
+    legendParts+=`<div style="display:flex;align-items:center;gap:4px;font-size:6pt;margin-bottom:2px"><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${item.col||'#888'};flex-shrink:0"></span>${item.label} (${Math.round(pct*100)}%)</div>`;
+  });
+  return `<div style="display:flex;align-items:flex-start;gap:10px">
+    <svg width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}" style="flex-shrink:0">${svgParts}</svg>
+    <div style="padding-top:4px">${legendParts}</div>
+  </div>`;
+}
+
+// Inline horizontal bar chart (used in group report extended section)
+function _barChart(items){
+  if(!items||!items.length) return '';
+  const max=Math.max(...items.map(x=>x.val||0))||1;
+  return items.map(item=>{
+    const pct=Math.round((item.val||0)/max*100);
+    return `<div class="ir"><div class="il">${item.label}</div><div class="it"><div class="if" style="width:${pct}%;background:${item.col||'#1a5c35'}"></div></div><div class="ip">${item.val}</div></div>`;
+  }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 // 
 //  REPORT 1 — INDIVIDUAL INTERVIEWER
 //  Pages: Cover · Body (flows to as many pages as needed)
@@ -426,7 +841,7 @@ function _sigs(people){
 //  For 15-20 cases the Results page has a compact case table.
 //  Extra cases flow naturally — browser handles extra pages.
 // 
-function buildInterviewerReport(interviewer, records, student){
+async function buildInterviewerReport(interviewer, records, student){
   student = student||{full_name:interviewer, reg_number:'—', email:'—'};
   const n = records.length;
   if(!n) return _doc('No_Records','<p style="padding:1in">No records found for '+interviewer+'.</p>');
@@ -469,7 +884,7 @@ function buildInterviewerReport(interviewer, records, student){
   if(allF.filter(x=>x.f.includes('FGM')).length) recomList.push({l:'critical',t:'FGM Case Referral',b:'FGM reported in '+allF.filter(x=>x.f.includes('FGM')).length+' household'+(allF.filter(x=>x.f.includes('FGM')).length!==1?'s':'')+'. Refer immediately to GBV response team and Sub-County Anti-FGM Coordinator.'});
 
   const H = (pg,tot)=>_hdr(fullName+' — Field Report','Interviewer Report · Pg '+pg+'/'+tot, period);
-  const F = (pg,tot)=>_ftr(pg,tot,regNo+' · '+fullName+' · GLU Kisumu');
+  const F = (pg,tot)=>_ftr(pg,tot,regNo+' · '+fullName+' · '+_instN);
 
   //  ESTIMATE TOTAL PAGES 
   // Page 1: cover
@@ -479,7 +894,13 @@ function buildInterviewerReport(interviewer, records, student){
   const casePages = Math.ceil(n/18); // ~18 cases per table page
   const TOTAL = 3 + casePages + 1;   // cover + summary + results + cases + disc/recs
 
-  const _instN = _getInstName();
+  const _instN    = _getInstName();
+  const _instProf = await _fetchInstProfile();
+  const _county     = _instProf.county      || '';
+  const _subCounty  = _instProf.sub_county  || '';
+  const _ward       = _instProf.ward        || '';
+  const _adminName  = _instProf.admin_name  || '';
+  const _contactEmail = _instProf.contact_email || '';
   //  PAGE 1: COVER 
   const p1 = _cover(
     'Community Health Situation Analysis',
@@ -496,7 +917,8 @@ function buildInterviewerReport(interviewer, records, student){
     +'<div class="cov-id-reg">Reg / Admission No: '+regNo+'</div>'
     +(email!=='—'?'<div class="cov-id-email">'+email+'</div>':'')
     +'<div class="cov-id-badge">'+_instN+'</div>'
-    +'</div>'
+    +'</div>',
+    _instProf  // ← pass profile for logo/banner/location
   );
 
   //  PAGE 2: Executive Summary + Intro + Methods (single column, fluent prose) 
@@ -696,7 +1118,7 @@ function buildInterviewerReport(interviewer, records, student){
 //  Approach: summary pages first, then a per-interviewer section
 //  with a compact one-line-per-case table for each interviewer.
 // 
-function buildGroupReport(records, students){
+async function buildGroupReport(records, students){
   students = students||{};
   const n  = records.length;
   if(!n) return _doc('Group_Report','<p style="padding:1in">No records loaded.</p>');
@@ -707,6 +1129,14 @@ function buildGroupReport(records, students){
   const period = dates.length>1?dates[0]+' to '+dates[dates.length-1]:dates[0]||now;
   const locs   = [...new Set(records.map(r=>r.location||'').filter(Boolean))];
   const locStr = locs.join(', ')||'';
+
+  const _instN    = _getInstName();
+  const _instProf = await _fetchInstProfile();
+  const _county     = _instProf.county     || '';
+  const _subCounty  = _instProf.sub_county || '';
+  const _ward       = _instProf.ward       || '';
+  const _adminName  = _instProf.admin_name || '';
+  const _contactEmail = _instProf.contact_email || '';
 
   const lat  = _cnt(records,'latrine','Yes');
   const wat  = _cnt(records,'water_treated','Yes');
@@ -893,7 +1323,8 @@ function buildGroupReport(records, students){
         +'</div>';
     }).join('')
     +'<div class="cov-id-badge" style="margin-top:7pt">'+ivs.length+' Interviewers &middot; '+n+' Household Records</div>'
-    +'</div>'
+    +'</div>',
+    _instProf  // ← pass profile for logo/banner/location
   );
   const p1 = rawCover.replace('<div class="cover">','<div class="cover grp-cover">');
 
@@ -1071,7 +1502,6 @@ function buildGroupReport(records, students){
       : '')
   );
 
- + WASH Results + Discussion + Conclusion 
   const p3 = GP(H(3,TOTAL), F(3,TOTAL), '',
     '<h2 class="sec">4. Per-Interviewer Comparison</h2>'
     +'<p class="note">Colour coding: <span style="color:#12274F;font-weight:700">Navy</span> = at or above target &nbsp;|&nbsp; <span style="color:#b91c1c;font-weight:700">Red</span> = below target. &nbsp; Latrine &amp; Water target: &ge;80% &nbsp;|&nbsp; HIV Awareness target: &ge;90%.</p>'
@@ -1205,20 +1635,33 @@ function buildGroupReport(records, students){
 
 // 
 //  ADMIN ENTRY POINTS
+//  Support both super-admin (_admRecs) and institution admin (_iaData.records)
 // 
+function _activeRecs(){
+  // Institution admin takes priority; fall back to super-admin variable
+  if(typeof _iaData!=='undefined'&&_iaData&&Array.isArray(_iaData.records)&&_iaData.records.length)
+    return _iaData.records;
+  if(typeof _admRecs!=='undefined'&&Array.isArray(_admRecs)&&_admRecs.length)
+    return _admRecs;
+  return null;
+}
+function _ivName(r){ return r.interviewer_name||r.interviewer||'Unknown'; }
+
 async function openInterviewerReport(interviewer){
-  if(typeof _admRecs==='undefined'||!_admRecs.length){showToast('No records — tap Refresh',true);return;}
-  const recs=_admRecs.filter(r=>r.interviewer===interviewer);
+  const allRecs=_activeRecs();
+  if(!allRecs){showToast('No records — tap Refresh',true);return;}
+  const recs=allRecs.filter(r=>_ivName(r)===interviewer);
   if(!recs.length){showToast('No records for '+interviewer,true);return;}
   showToast('Building report…');
   const student=await _getStudentDetails(interviewer);
-  const html=buildInterviewerReport(interviewer,recs,student);
+  const html=await buildInterviewerReport(interviewer,recs,student);
   _openReportFrame(html,' '+interviewer+' — Report');
 }
 
 function openAllInterviewerReports(){
-  if(typeof _admRecs==='undefined'||!_admRecs.length){showToast('No records — tap Refresh',true);return;}
-  const ivNames=[...new Set(_admRecs.map(r=>r.interviewer||'Unknown'))].filter(Boolean).sort();
+  const allRecs=_activeRecs();
+  if(!allRecs){showToast('No records — tap Refresh',true);return;}
+  const ivNames=[...new Set(allRecs.map(_ivName))].filter(Boolean).sort();
   if(ivNames.length===1){openInterviewerReport(ivNames[0]);return;}
 
   var ex=document.getElementById('rpt-menu');if(ex)ex.remove();
@@ -1227,14 +1670,14 @@ function openAllInterviewerReports(){
   menu.style.cssText='position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;';
   var btns='';
   ivNames.forEach(function(iv){
-    var cnt=_admRecs.filter(function(r){return r.interviewer===iv;}).length;
+    var cnt=allRecs.filter(function(r){return _ivName(r)===iv;}).length;
     btns+='<button class="rpt-iv-btn" data-iv="'+encodeURIComponent(iv)+'" style="width:100%;padding:11px 14px;background:#f4f8f5;border:1.5px solid #cce0d4;border-radius:10px;font-family:inherit;font-size:.86rem;font-weight:700;color:#1a5c35;cursor:pointer;text-align:left;display:flex;justify-content:space-between;align-items:center"> '+iv+'<span style="font-size:.68rem;font-weight:400;color:#6b8a74">'+cnt+' record'+(cnt!==1?'s':'')+'</span></button>';
   });
   menu.innerHTML='<div style="background:#fff;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:20px 16px calc(20px + env(safe-area-inset-bottom))">'
     +'<div style="font-weight:800;font-size:1rem;color:#1a5c35;margin-bottom:3px"> Select Report</div>'
     +'<div style="font-size:.72rem;color:#6b8a74;margin-bottom:13px">Individual interviewer or full class group report</div>'
     +'<div style="display:flex;flex-direction:column;gap:7px">'+btns
-    +'<button id="rpt-grp" style="width:100%;padding:11px 14px;background:linear-gradient(135deg,#0d3b66,#1a5fa8);border:none;border-radius:10px;font-family:inherit;font-size:.86rem;font-weight:700;color:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center"> Class Group Report<span style="font-size:.68rem;opacity:.7">'+_admRecs.length+' records</span></button>'
+    +'<button id="rpt-grp" style="width:100%;padding:11px 14px;background:linear-gradient(135deg,#0d3b66,#1a5fa8);border:none;border-radius:10px;font-family:inherit;font-size:.86rem;font-weight:700;color:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center"> Class Group Report<span style="font-size:.68rem;opacity:.7">'+allRecs.length+' records</span></button>'
     +'<button id="rpt-cancel" style="width:100%;padding:10px;background:#f0f0f0;border:none;border-radius:10px;font-family:inherit;font-size:.82rem;cursor:pointer;color:#888">Cancel</button>'
     +'</div></div>';
   document.body.appendChild(menu);
@@ -1250,16 +1693,44 @@ function openAllInterviewerReports(){
 }
 
 async function openGroupReport(){
-  if(typeof _admRecs==='undefined'||!_admRecs.length){showToast('No records — tap Refresh',true);return;}
+  const allRecs=_activeRecs();
+  if(!allRecs){showToast('No records — tap Refresh',true);return;}
   showToast('Building group report… this may take a moment');
-  const ivNames=[...new Set(_admRecs.map(r=>r.interviewer||'Unknown'))].sort();
+  const ivNames=[...new Set(allRecs.map(_ivName))].sort();
   const students={};
   for(const iv of ivNames){ students[iv]=await _getStudentDetails(iv); }
-  const html=buildGroupReport(_admRecs,students);
+  const html=await buildGroupReport(allRecs,students);
   _openReportFrame(html,' Class Group Report');
 }
 
 function _openReportFrame(html, title){
+  // Student reports (Brief / Full / IMRaD) open directly in a new tab.
+  // They embed RPT_BASE_CSS + rptPrintBtn() so no iframe is needed.
+  const isStudentReport = /Brief Report|Full Report|IMRaD Report/.test(title||'');
+  // Skip new-tab when from My Reports panel — Android blocks window.open() silently
+  if(isStudentReport && !window._reportFromMyReports){
+    try{
+      const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+      const url  = URL.createObjectURL(blob);
+      const win  = window.open(url, '_blank');
+      if(win){
+        showToast('Report opened — use the Print button inside to save as PDF');
+        setTimeout(()=>URL.revokeObjectURL(url), 120000);
+        return;
+      }
+      // Popup blocked: fall back to download
+      const safe = (title||'Health-Report').replace(/[^a-zA-Z0-9\s\-]/g,'').trim().replace(/\s+/g,'_')||'Health-Report';
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = safe+'_'+new Date().toISOString().split('T')[0]+'.html';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(()=>URL.revokeObjectURL(url), 5000);
+      showToast('Downloaded — open the file then Print → Save as PDF');
+      return;
+    }catch(e){ /* fall through to iframe on unexpected error */ }
+  }
+
+  // Admin / interviewer reports use the in-app iframe overlay
   const ov=document.getElementById('report-overlay');
   const fr=document.getElementById('report-frame');
   const ti=document.getElementById('report-title');
@@ -1267,18 +1738,13 @@ function _openReportFrame(html, title){
   const doc=fr.contentDocument||fr.contentWindow.document;
   doc.open();doc.write(html);doc.close();
   if(ti)ti.textContent=title;
-  // Update close button label + hide survey-only buttons for admin
   const isAdmin = localStorage.getItem('chsa_is_admin_bypass')==='1';
   const closeBtn = document.getElementById('report-close-btn');
-  if(closeBtn) closeBtn.textContent = isAdmin ? '← Dashboard' : ' Close';
-
-  // Use showScreen to properly override any inline display:none
-  if(typeof showScreen==='function'){
-    showScreen('report');
-  } else {
-    ov.style.display='block';
-    ov.classList.add('open');
-  }
+  if(closeBtn) closeBtn.textContent = isAdmin ? '← Dashboard' : '❌ Close';
+  // Set display:flex directly — NEVER use showScreen() here.
+  // showScreen() hides ALL registered screens first (including report-overlay)
+  // before showing the target, killing the report we just opened.
+  ov.style.display='flex';
 }
 
 // 
@@ -1316,6 +1782,11 @@ function printReport(){
 function closeReportOverlay(){
   const ov=document.getElementById('report-overlay');
   if(ov){ ov.classList.remove('open'); ov.style.display='none'; }
+  // If opened from My Reports panel, return there
+  if(window._reportFromMyReports){
+    window._reportFromMyReports=false;
+    if(typeof openMyReportsPanel==='function'){ setTimeout(openMyReportsPanel,200); return; }
+  }
   // Return each role to their correct home
   const session = (typeof authGetSession==='function') ? authGetSession() : null;
   const role = session?.role || 'user';
@@ -1333,9 +1804,49 @@ function goHomeFromReport(){ closeReportOverlay(); }
 // 
 //  SURVEY FINISH MODAL REPORTS
 // 
-function openBriefReport(){  closeFinish(); _openReportFrame(buildBriefReport(cRec()), ' Brief Report'); }
-function openFullReport(){   closeFinish(); _openReportFrame(buildFullReport(),        ' Full Report'); }
-function openIMRaDReport(){  closeFinish(); _openReportFrame(buildIMRaDReport(cRec()), ' IMRaD Report'); }
+async function openBriefReport(){
+  // Close finish modal UI only — do NOT call closeFinish() which calls showScreen('survey')
+  // and navigates away from the report before it renders.
+  const fm = document.getElementById('finModal');
+  if(fm) fm.classList.remove('open');
+  const r = cRec();
+  if(!r || (!r.a_age && !r.interview_date && !r.interviewer_name)){
+    showToast('No record data — please fill in the survey first', true); return;
+  }
+  const metrics = (typeof computeSurveyMetrics === 'function') ? computeSurveyMetrics([r]) : null;
+  const idHeader = (typeof buildIdentityReportHeader === 'function') ? await buildIdentityReportHeader() : '';
+  _openReportFrame(_injectIdentityHeader(buildBriefReport(r, metrics), idHeader), ' Brief Report');
+}
+async function openFullReport(){
+  const fm = document.getElementById('finModal');
+  if(fm) fm.classList.remove('open');
+  const r = cRec();
+  if(!r || (!r.a_age && !r.interview_date && !r.interviewer_name)){
+    showToast('No record data — please fill in the survey first', true); return;
+  }
+  const idHeader = (typeof buildIdentityReportHeader === 'function') ? await buildIdentityReportHeader() : '';
+  _openReportFrame(_injectIdentityHeader(buildFullReport(), idHeader), ' Full Report');
+}
+async function openIMRaDReport(){
+  const fm = document.getElementById('finModal');
+  if(fm) fm.classList.remove('open');
+  const r = cRec();
+  if(!r || (!r.a_age && !r.interview_date && !r.interviewer_name)){
+    showToast('No record data — please fill in the survey first', true); return;
+  }
+  const metrics = (typeof computeSurveyMetrics === 'function') ? computeSurveyMetrics([r]) : null;
+  const idHeader = (typeof buildIdentityReportHeader === 'function') ? await buildIdentityReportHeader() : '';
+  _openReportFrame(_injectIdentityHeader(buildIMRaDReport(r, metrics), idHeader), ' IMRaD Report');
+}
+
+function _injectIdentityHeader(html, idHeader){
+  if(!idHeader) return html;
+  // Try to inject after the meta table, before .body div
+  const injected = html.replace(/(<\/table>(\s*)<div class="body">)/, '$2' + idHeader + '$1');
+  if(injected !== html) return injected;
+  // Fallback: inject at first .body div
+  return html.replace(/(<div class="body">)/, idHeader + '$1');
+}
 function exportJSON(){
   closeFinish();
   const rec=cRec();
@@ -1351,7 +1862,7 @@ function exportJSON(){
 
 //  BRIEF / FULL / IMRAD builders 
 
-function buildBriefReport(r){
+function buildBriefReport(r, metrics){
   const {flags,concerns}=extractFlags(r);
   const totPeople=(parseInt(r.a_tot_m)||0)+(parseInt(r.a_tot_f)||0);
   const water=[].concat(r.h_wsrc||[]).join(', ')||'None recorded';
@@ -1362,15 +1873,51 @@ function buildBriefReport(r){
   const flagHTML=flags.length?flags.map(f=>rptFlag(' '+f,'red')).join(''):rptFlag(' No critical red flags identified','ok');
   const concernHTML=concerns.length?concerns.map(c=>rptFlag(' '+c,'amber')).join(''):rptFlag(' No significant concerns','ok');
 
+  // Processed metrics from data-processor
+  const mInfra  = metrics && metrics.infrastructure  || {};
+  const mHealth  = metrics && metrics.health         || {};
+  const mNutr   = metrics && metrics.nutrition       || {};
+  const mMCH    = metrics && metrics.maternal_child  || {};
+  const mEnv    = metrics && metrics.environmental   || {};
+  const mRisk   = metrics && metrics.risk_profiles   || [];
+  const mRec    = metrics && metrics.recommendations || [];
+
+  const _pctBadge=(label,pct)=>{
+    if(pct===undefined||pct===null) return '';
+    const col=pct>=80?'#1e5c38':pct>=60?'#b45309':'#c0392b';
+    const bg =pct>=80?'#e8f5ed':pct>=60?'#fff8e1':'#fdecea';
+    return `<div style="background:${bg};border-radius:8px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;"><span style="font-size:.74rem;color:#333">${label}</span><span style="font-size:.9rem;font-weight:800;color:${col}">${pct}%</span></div>`;
+  };
+
+  const processedMetricsHTML = metrics ? `
+  <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 16px;margin-bottom:16px;">
+    <div style="font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#1d4ed8;margin-bottom:10px;"> Processed Health Indicators</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px;">
+      ${_pctBadge('Pit Latrine Coverage',mInfra.pct_pit_latrine)}
+      ${_pctBadge('Water Treated',mInfra.pct_water_treated)}
+      ${_pctBadge('HIV Awareness',mHealth.pct_hiv_aware)}
+      ${_pctBadge('HIV Tested',mHealth.pct_hiv_tested)}
+      ${_pctBadge('Food Sufficient',mNutr.pct_food_sufficient)}
+      ${_pctBadge('Children Immunised',mMCH.pct_immunised)}
+      ${_pctBadge('Mosquito Net',mEnv.pct_mosquito_net)}
+      ${_pctBadge('Permanent House',mInfra.pct_permanent_house)}
+    </div>
+    ${mRisk.length ? `<div style="font-size:.72rem;font-weight:700;color:#c0392b;margin-bottom:5px;"> Risk Profile: ${mRisk[0].level||''}</div>
+    <div style="font-size:.73rem;color:#555;">${mRisk[0].factors ? mRisk[0].factors.slice(0,3).join(' · ') : ''}</div>` : ''}
+    ${mRec.length ? `<div style="margin-top:10px;"><div style="font-size:.72rem;font-weight:800;color:#b45309;margin-bottom:5px;"> Top Recommendations</div>
+    ${mRec.slice(0,3).map(rec=>`<div style="background:${rec.priority==='CRITICAL'?'#fce4ec':rec.priority==='HIGH'?'#fff3e0':'#e8f5ed'};border-radius:7px;padding:7px 10px;margin-bottom:5px;font-size:.73rem;"><strong style="color:${rec.priority==='CRITICAL'?'#c0392b':rec.priority==='HIGH'?'#e65100':'#1e5c38'}">${rec.priority} · ${rec.category}</strong><br>${rec.action||rec.issue||''}</div>`).join('')}
+    </div>` : ''}
+  </div>` : '';
+
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Brief Health Report</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${RPT_BASE_CSS}
-.body{padding:20px 30px 40px;} .grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-.summary-box{background:linear-gradient(135deg,#f9f7f4,#e8f5ed);border:1px solid #cce0d4;border-radius:12px;padding:14px 16px;margin-bottom:16px;}
-.summary-text{font-size:0.85rem;line-height:1.7;color:#1a2b22;} .summary-text b{color:#1e5c38;} .red{color:#c0392b;font-weight:700;}
-</style></head><body><div class="page">
-${rptHeader('','Community Health Brief Report','\'+_getInstName()+' · '+now)}
+</style></head><body>
+${buildStudentCoverPage(r,'BRIEF REPORT','#0a3d1f','#1a5c35')}
+<div class="page">
+<div class="page-stripe"></div>
+${rptHeader('','Community Health Brief Report',`${_getInstName()} · ${now}`)}
 ${rptMeta([['Interviewer',r.interviewer_name||getUserName()],['Date',r.interview_date||now],['Location',r.interview_location||r.interview_location_custom],['Respondent',(r.a_age||'?')+' yrs, '+(r.a_gender||'?')+', '+(r.a_marital||'?')]])}
 <div class="body">
-  ${rptSec(' Narrative Summary')}
+  ${rptSec('📝 Narrative Summary')}
   <div class="summary-box"><div class="summary-text">
     This interview was conducted with a <b>${r.a_age||'?'}-year-old ${r.a_gender||'person'}</b>
     ${r.a_marital?`(${r.a_marital})`:''}${r.a_pos?`, the <b>${r.a_pos}</b> of the household`:''}
@@ -1382,7 +1929,7 @@ ${rptMeta([['Interviewer',r.interviewer_name||getUserName()],['Date',r.interview
     ${r.f_heard==='No'?'<span class="red">Respondent has never heard of HIV/AIDS.</span>':r.f_tested==='Yes'?'Respondent has been tested for HIV.':'Respondent has NOT been tested for HIV.'}
     ${[].concat(r.c_ill||[]).length>0?`Illnesses reported in past 6 months: <b>${illness}</b>.`:'No illnesses reported in past 6 months.'}
   </div></div>
-  ${rptSec(' Key Household Data')}
+  ${rptSec('🏠 Key Household Data')}
   <div class="grid2">
     ${rptStat('House Type',r.b_type)}${rptStat('Household Size',totPeople+' people')}
     ${rptStat('Bedrooms',r.b_rooms)}${rptStat('Per Bedroom',r.b_proom+' people')}
@@ -1391,8 +1938,9 @@ ${rptMeta([['Interviewer',r.interviewer_name||getUserName()],['Date',r.interview
     ${rptStat('Deaths (5 yrs)',deaths)}${rptStat('HIV Tested',r.f_tested)}
     ${rptStat('Education',r.a_edu)}${rptStat('Occupation',r.a_occ)}
   </div>
-  ${rptSec(' Red Flags — Requires Immediate Attention')}${flagHTML}
-  ${rptSec(' Concerns — Follow Up Recommended')}${concernHTML}
+  ${rptSec('🚨 Red Flags — Requires Immediate Attention')}${flagHTML}
+  ${processedMetricsHTML}
+  ${rptSec('⚠️ Concerns — Follow Up Recommended')}${concernHTML}
   ${rptSec(' Illnesses Reported')}
   ${rptFlag([].concat(r.c_ill||[]).length>0?' '+illness:'No illnesses recorded',[].concat(r.c_ill||[]).length>0?'amber':'ok')}
   ${r.c_consult?rptFlag('Consultation sought: '+r.c_consult+(r.c_where?' — at '+r.c_where:''),r.c_consult==='Yes'?'ok':'amber'):''}
@@ -1409,7 +1957,7 @@ ${rptMeta([['Interviewer',r.interviewer_name||getUserName()],['Date',r.interview
     return html;
   })()}
 </div>
-${rptSig()}${rptPrintBtn()}</div></body></html>`;
+${rptSig()}${rptPrintBtn()}</div></div></body></html>`;
 }
 
 function buildFullReport(){
@@ -1441,14 +1989,17 @@ function buildFullReport(){
     sectionsHTML+=`<div style="margin-bottom:18px;border-radius:10px;overflow:hidden;border:1px solid #e0e0e0"><div style="${color};color:#fff;padding:9px 14px;font-size:0.82rem;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact"><span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:99px;font-size:0.65rem;margin-right:6px;letter-spacing:.5px">${badge}</span>${title}</div><table style="width:100%;border-collapse:collapse"><tbody>${rows}</tbody></table></div>`;
   });
   cards.forEach((c,i)=>c.style.display=i===cur?'block':'none');
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Full Health Survey Report</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${RPT_BASE_CSS}.body{padding:16px 28px 40px;}</style></head><body><div class="page">
-${rptHeader('','Full Medical Survey System (MSS) Report','\'+_getInstName()+' · '+now,'#1a4f6e','#1e5c38')}
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Full Health Survey Report</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${RPT_BASE_CSS}</style></head><body>
+${buildStudentCoverPage(r,'FULL REPORT','#1a4f6e','#1e5c38')}
+<div class="page">
+<div class="page-stripe"></div>
+${rptHeader('','Full Medical Survey System (MSS) Report',`${_getInstName()} · ${now}`,'#1a4f6e','#1e5c38')}
 ${rptMeta([['Interviewer',name],['Date',r.interview_date||now],['Location',loc],['Respondent',(r.a_age||'?')+' yrs · '+(r.a_gender||'?')+' · '+(r.a_marital||'?')]])}
 <div class="body">${sectionsHTML}</div>
-${rptSig()}${rptPrintBtn()}</div></body></html>`;
+${rptSig()}${rptPrintBtn()}</div></div></body></html>`;
 }
 
-function buildIMRaDReport(r){
+function buildIMRaDReport(r, metrics){
   const {flags,concerns}=extractFlags(r);
   const now=new Date().toLocaleDateString('en-KE',{year:'numeric',month:'long',day:'numeric'});
   const totPeople=(parseInt(r.a_tot_m)||0)+(parseInt(r.a_tot_f)||0);
@@ -1456,6 +2007,16 @@ function buildIMRaDReport(r){
   const illnesses=[].concat(r.c_ill||[]);
   const name=r.interviewer_name||getUserName()||'Unknown Interviewer';
   const loc=r.interview_location||r.interview_location_custom||'';
+
+  // Processed metrics from data-processor
+  const mInfra = metrics && metrics.infrastructure  || {};
+  const mHealth = metrics && metrics.health         || {};
+  const mNutr  = metrics && metrics.nutrition       || {};
+  const mMCH   = metrics && metrics.maternal_child  || {};
+  const mEnv   = metrics && metrics.environmental   || {};
+  const mQual  = metrics && metrics.data_quality    || {};
+  const mRisk  = metrics && metrics.risk_profiles   || [];
+  const mRec   = metrics && metrics.recommendations || [];
 
   //  Dynamic discussion: pick most critical finding 
   let keyFinding='';
@@ -1491,12 +2052,11 @@ function buildIMRaDReport(r){
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>IMRaD Health Report — ${name}</title><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>${RPT_BASE_CSS}
-.body{padding:24px 34px 50px;}
-h1{font-family:'Merriweather',Georgia,serif;font-size:1.2rem;font-weight:700;color:#0f1f18;line-height:1.35;margin-bottom:8px;}
-h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#6b8a74;border-bottom:2px solid #e8f5ed;padding-bottom:5px;margin:24px 0 12px;}
-h3{font-size:0.85rem;font-weight:700;color:#1a5c35;margin:14px 0 6px;}
+h1{font-family:'Merriweather',Georgia,serif;font-size:1.15rem;font-weight:700;color:#0f1f18;line-height:1.35;margin-bottom:8px;}
+h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:0.72rem;font-weight:800;text-transform:uppercase;letter-spacing:1.2px;color:#6b8a74;border-bottom:2px solid #e8f5ed;padding-bottom:5px;margin:20px 0 10px;}
+h3{font-size:0.85rem;font-weight:700;color:#1a5c35;margin:12px 0 5px;}
 p{font-size:0.84rem;line-height:1.75;color:#1a2b22;margin-bottom:10px;}
-.abstract-box{background:linear-gradient(135deg,#e8f5ed,#edf4fb);border:1.5px solid #cce0d4;border-radius:12px;padding:16px 20px;margin-bottom:4px;}
+.abstract-box{background:linear-gradient(135deg,#e8f5ed,#edf4fb);border:1.5px solid #cce0d4;border-radius:12px;padding:14px 18px;margin-bottom:4px;}
 .abstract-box p{font-style:italic;font-size:0.82rem;}
 .kw{display:inline-block;background:#e8f5ed;color:#1a5c35;border:1px solid #cce0d4;border-radius:99px;padding:2px 10px;font-size:0.68rem;font-weight:600;margin:2px;}
 .score-row{display:grid;grid-template-columns:130px 1fr;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #f5f5f5;}
@@ -1507,8 +2067,11 @@ p{font-size:0.84rem;line-height:1.75;color:#1a2b22;margin-bottom:10px;}
 .flag-red{background:#fdecea;color:#c0392b;border-left:3px solid #c0392b;}
 .flag-amber{background:#fff8e1;color:#e65100;border-left:3px solid #f39c12;}
 .flag-ok{background:#e8f5ed;color:#1e5c38;border-left:3px solid #4CAF72;}
-</style></head><body><div class="page">
-${rptHeader('','Community Health Situation Analysis — Individual Report','\'+_getInstName()+' · '+now)}
+</style></head><body>
+${buildStudentCoverPage(r,'IMRaD REPORT','#4a235a','#7b3fa0')}
+<div class="page">
+<div class="page-stripe"></div>
+${rptHeader('','Community Health Situation Analysis — Individual Report',`${_getInstName()} · ${now}`)}
 ${rptMeta([['Interviewer',name],['Date',r.interview_date||now],['Location',loc],['Respondent',(r.a_age||'?')+' yrs, '+(r.a_gender||'?')],['Record ID',r._id||'—']])}
 <div class="body">
 
@@ -1679,6 +2242,32 @@ ${rptMeta([['Interviewer',name],['Date',r.interview_date||now],['Location',loc],
     return html;
   })()}
 
+  ${metrics ? `
+  <h2>4b. Deep Analytics — Processed by Data Processor</h2>
+  <div style="background:#eef6ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:16px 18px;margin-bottom:12px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+      ${[
+        ['Pit Latrine',mInfra.pct_pit_latrine],
+        ['Water Treated',mInfra.pct_water_treated],
+        ['Permanent House',mInfra.pct_permanent_house],
+        ['Electricity',mInfra.pct_electricity],
+        ['HIV Aware',mHealth.pct_hiv_aware],
+        ['HIV Tested',mHealth.pct_hiv_tested],
+        ['Food Sufficient',mNutr.pct_food_sufficient],
+        ['Children Immunised',mMCH.pct_immunised],
+        ['Mosquito Net',mEnv.pct_mosquito_net],
+        ['Data Quality',mQual.overall_quality_score],
+      ].filter(([,v])=>v!==undefined&&v!==null).map(([lbl,pct])=>{
+        const col=pct>=80?'#1e5c38':pct>=60?'#b45309':'#c0392b';
+        const bg=pct>=80?'#e8f5ed':pct>=60?'#fff8e1':'#fdecea';
+        return `<div style="background:${bg};border-radius:8px;padding:8px 10px;display:flex;justify-content:space-between;"><span style="font-size:.73rem;color:#333">${lbl}</span><strong style="color:${col}">${pct}%</strong></div>`;
+      }).join('')}
+    </div>
+    ${mRisk.length ? `<div style="background:#fff0f0;border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:.78rem;"><strong style="color:#c0392b"> Risk Level: ${mRisk[0].level||'—'}</strong>${mRisk[0].factors?'<br><span style="color:#555">'+mRisk[0].factors.slice(0,4).join(' · ')+'</span>':''}</div>` : ''}
+    ${mNutr.top_deficiencies && mNutr.top_deficiencies.length ? `<p style="font-size:.78rem;"><strong>Nutrition gaps:</strong> ${mNutr.top_deficiencies.slice(0,3).join(', ')}</p>` : ''}
+    ${mHealth.top_illnesses && mHealth.top_illnesses.length ? `<p style="font-size:.78rem;"><strong>Top illnesses (processed):</strong> ${mHealth.top_illnesses.slice(0,3).map(x=>x.name+' ('+x.pct+'%)').join(', ')}</p>` : ''}
+  </div>` : ''}
+
     <!-- DISCUSSION -->
   <h2>5. Discussion</h2>
   <p>${keyFinding}</p>
@@ -1688,6 +2277,12 @@ ${rptMeta([['Interviewer',name],['Date',r.interview_date||now],['Location',loc],
 
   <!-- RECOMMENDATIONS -->
   <h2>6. Recommendations</h2>
+  ${mRec.length ? mRec.map(rec=>`
+    <div style="background:${rec.priority==='CRITICAL'?'#fce4ec':rec.priority==='HIGH'?'#fff3e0':'#e8f5ed'};border-radius:9px;padding:10px 14px;margin-bottom:8px;">
+      <div style="font-size:.72rem;font-weight:800;color:${rec.priority==='CRITICAL'?'#c0392b':rec.priority==='HIGH'?'#e65100':'#1e5c38'};margin-bottom:3px">${rec.priority} · ${rec.category||''}</div>
+      <div style="font-size:.8rem;font-weight:600;color:#1a2b22;margin-bottom:2px">${rec.issue||''}</div>
+      <div style="font-size:.76rem;color:#555">→ ${rec.action||''}</div>
+    </div>`).join('') : `
   ${r.g_latrine==='No'?'<p><strong> Sanitation:</strong> This household must be prioritised for latrine construction assistance under the Community-Led Total Sanitation (CLTS) programme. Follow-up within 30 days is recommended.</p>':''}
   ${r.h_treat==='No'?'<p><strong> Water Safety:</strong> Provide household with WaterGuard chlorine solution and a safe storage container. Demonstrate proper water treatment and conduct a follow-up visit to verify uptake.</p>':''}
   ${r.f_heard==='No'?'<p><strong> HIV/AIDS Education:</strong> This respondent has never heard of HIV/AIDS. Referral to the nearest VCT centre and enrolment in a community health education programme is strongly recommended.</p>':''}
@@ -1695,8 +2290,29 @@ ${rptMeta([['Interviewer',name],['Date',r.interview_date||now],['Location',loc],
   ${illnesses.includes('Malaria')?'<p><strong> Malaria:</strong> Promote consistent use of insecticide-treated bed nets (ITNs). Inspect home for stagnant water sources. Ensure household has access to malaria rapid diagnostic tests (RDTs) at the nearest health facility.</p>':''}
   ${r.e_enough==='No'||r.e_skip==='Yes'?'<p><strong> Nutrition:</strong> Household is experiencing food insecurity. Refer to the County Nutrition Programme and explore eligibility for the Hunger Safety Net Programme (HSNP).</p>':''}
   ${r.b_type==='Temporary'?'<p><strong> Housing:</strong> Temporary housing poses ongoing health risks. Link household with county low-cost housing programmes and provide information on locally available durable materials.</p>':''}
+  `}
   <p><strong> Follow-Up:</strong> A revisit is recommended within <strong>${flags.length>0?'2 weeks':'6 months'}</strong> to assess progress on identified health issues and reinforce health education messages.</p>
 
 </div>
-${rptSig()}${rptPrintBtn()}</div></body></html>`;
+${rptSig()}${rptPrintBtn()}</div></div></body></html>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  ADMIN BRIDGE FUNCTIONS
+//  Called by index.html buttons — wire to the actual report entry points
+// ─────────────────────────────────────────────────────────────────────────────
+function admShowIndividualReports(){
+  if(!_activeRecs()){
+    showToast('No records loaded — tap Refresh first',true);
+    return;
+  }
+  openAllInterviewerReports();
+}
+
+function admShowGroupReport(){
+  if(!_activeRecs()){
+    showToast('No records loaded — tap Refresh first',true);
+    return;
+  }
+  openGroupReport();
 }

@@ -187,6 +187,7 @@ function _doShowScreen(name){
   if(name==='home')    displayType='flex';
   if(name==='loader')  displayType='flex';
   if(name==='welcome') displayType='flex';
+  if(name==='report')  displayType='flex';
   target.style.display = displayType;
   // Fade in
   target.style.opacity = '0';
@@ -345,12 +346,43 @@ const EMAILJS_PUBLIC   = 'uuUQcmG7gRRyZTqty';
 const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
 
 function authGetSession(){ try{ return JSON.parse(localStorage.getItem(AUTH_KEY)||'null'); }catch{return null;} }
-function authSaveSession(s){ localStorage.setItem(AUTH_KEY, JSON.stringify(s)); }
-function authClearSession(){ localStorage.removeItem(AUTH_KEY); }
-function getSessionInstitutionId(){ return authGetSession()?.institution_id || null; }
+function authSaveSession(s){
+  // Always attach the current JWT token into the session object so that
+  // api-client.js Auth.getToken() can find it via the chsa_session fallback.
+  const token = localStorage.getItem('hs_jwt_token') || sessionStorage.getItem('hs_jwt_token') || '';
+  const withToken = token ? { ...s, token } : s;
+  // Write to both keys so every consumer (api-client, admin-institution, etc.) finds it.
+  localStorage.setItem(AUTH_KEY, JSON.stringify(withToken));          // chsa_auth
+  localStorage.setItem('chsa_session', JSON.stringify(withToken));    // chsa_session (legacy)
+}
+function authClearSession(){
+  localStorage.removeItem(AUTH_KEY);
+  localStorage.removeItem('chsa_session');
+}
+function getSessionInstitutionId(){
+  // 1. Primary: read from session object
+  const sess = authGetSession();
+  if (sess?.institution_id) return sess.institution_id;
+
+  // 2. Fallback: decode from JWT token (always has institution_id if user belongs to one)
+  try {
+    const token = localStorage.getItem('hs_jwt_token') || sessionStorage.getItem('hs_jwt_token')
+      || sess?.token || '';
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      if (payload.institution_id) {
+        // Patch session so future calls don't need the fallback
+        if (sess) { sess.institution_id = payload.institution_id; authSaveSession(sess); }
+        return payload.institution_id;
+      }
+    }
+  } catch(e) {}
+
+  console.error('[MSS] institution_id not found in session or JWT — upload will fail. User must log out and log back in.');
+  return null;
+}
 function getSessionInstitutionName(){ return authGetSession()?.institution_name || null; }
 function getUserName(){ return localStorage.getItem('chsa_user_name') || authGetSession()?.full_name || ''; }
-function authClearSession(){ localStorage.removeItem(AUTH_KEY); }
 
 // 
 //  ENTRANCE SEQUENCE
@@ -762,7 +794,9 @@ async function authLogin(){
 
   if(bypassOk){
     const payload=window.HS.Auth.getPayload();
-    authSaveSession({ reg_number:'ADMIN', full_name:payload?.full_name||'Administrator', status:'super_admin', role:'super_admin', email:payload?.email||rawReg });
+    // Token is already stored by HSAuth.superLogin → Auth.setToken. Mirror it so
+    // authSaveSession (which reads hs_jwt_token) can embed it in the session object.
+    authSaveSession({ reg_number:'ADMIN', full_name:payload?.full_name||'Administrator', status:'super_admin', role:'super_admin', email:payload?.email||rawReg, institution_id: null });
     localStorage.setItem('chsa_user_name', payload?.full_name||'Administrator');
     localStorage.setItem('chsa_is_admin_bypass','1');
     authEnterApp();
@@ -782,16 +816,26 @@ async function authLogin(){
     const data=await window.HS.HSAuth.login(reg, reg);
     const user=data.user;
     if(user.status==='removed'){ authMsg('login','Your access has been removed. Contact the coordinator.','rgba(255,150,100,.9)'); window.HS.Auth.clearToken(); return; }
-    // Resolve institution name from API so consent form and reports show it correctly
+    // Resolve institution name AND profile data (county, sub_county, village_list) from API
     let _instNameResolved = '';
+    let _instCounty = '', _instSubCounty = '', _instWard = '', _instVillageList = [];
+    let _instAdminName = '', _instContactEmail = '';
     if(user.institution_id){
       try{
         const _instData = await window.HS.HSAdmin.getInstitutions();
         const _found = (_instData.institutions||[]).find(i=>i.id===user.institution_id);
-        if(_found) _instNameResolved = _found.name;
+        if(_found){
+          _instNameResolved  = _found.name;
+          _instCounty        = _found.county       || '';
+          _instSubCounty     = _found.sub_county    || '';
+          _instWard          = _found.ward          || '';
+          _instVillageList   = _found.village_list  || [];
+          _instAdminName     = _found.admin_name    || '';
+          _instContactEmail  = _found.contact_email || '';
+        }
       }catch(e){}
     }
-    authSaveSession({ reg_number:reg, full_name:user.full_name, status:'active', role:user.role, institution_id:user.institution_id, institution_name:_instNameResolved||null });
+    authSaveSession({ reg_number:reg, full_name:user.full_name, status:'active', role:user.role, institution_id:user.institution_id, institution_name:_instNameResolved||null, county:_instCounty||null, sub_county:_instSubCounty||null, ward:_instWard||null, village_list:_instVillageList, admin_name:_instAdminName||null, contact_email:_instContactEmail||null });
     localStorage.setItem('chsa_user_name', user.full_name);
     if(user.role==='institution_admin') localStorage.setItem('chsa_is_inst_admin','1');
     authEnterApp();
@@ -1128,7 +1172,27 @@ async function authAdminLogin(){
     const user=data.user;
     if(user.status==='removed'){ authMsg('login','Your access has been removed.','rgba(255,150,100,.9)'); window.HS.Auth.clearToken(); return; }
     if(!['institution_admin','super_admin'].includes(user.role)){ authMsg('login','No institution admin found with that ID.','rgba(255,150,100,.9)'); window.HS.Auth.clearToken(); return; }
-    authSaveSession({ reg_number:user.id||rawId, full_name:user.full_name, status:'active', role:user.role, institution_id:user.institution_id, id_number:rawId });
+    // Resolve institution name AND profile data from API
+    let _iaInstName = '', _iaCounty = '', _iaSubCounty = '', _iaWard = '', _iaVillageList = [];
+    if(user.institution_id){
+      try{
+        const _iaInstData = await window.HS.HSAdmin.getInstitutions();
+        const _iaFound = (_iaInstData.institutions||[]).find(i=>i.id===user.institution_id);
+        if(_iaFound){
+          _iaInstName     = _iaFound.name;
+          _iaCounty       = _iaFound.county      || '';
+          _iaSubCounty    = _iaFound.sub_county   || '';
+          _iaWard         = _iaFound.ward         || '';
+          _iaVillageList  = _iaFound.village_list || [];
+        }
+      }catch(e){}
+      // Write login_date to institution_profiles (fire-and-forget)
+      try{
+        const _today = new Date().toISOString().slice(0,10);
+        await window.HS.HSAdmin.updateInstitutionProfile(user.institution_id, { login_date: _today });
+      }catch(e){}
+    }
+    authSaveSession({ reg_number:user.id||rawId, full_name:user.full_name, status:'active', role:user.role, institution_id:user.institution_id, institution_name:_iaInstName||null, county:_iaCounty||null, sub_county:_iaSubCounty||null, ward:_iaWard||null, village_list:_iaVillageList, id_number:rawId });
     localStorage.setItem('chsa_user_name',user.full_name);
     localStorage.setItem('chsa_is_inst_admin','1');
     authEnterApp();
@@ -1366,6 +1430,7 @@ function showEnumeratorHome(){
   }
 
   showScreen('home', true);
+  if(typeof fabHide==='function') fabHide();
   var fullN=getUserName()||'Interviewer', h=new Date().getHours();
   var g=h<12?'Good Morning':h<17?'Good Afternoon':'Good Evening';
   var ne=document.getElementById('hp-name'), ge=document.getElementById('hp-greeting');
@@ -1395,7 +1460,7 @@ function _hpStats(){
     if(te) te.textContent=keys.length; if(td) td.textContent=t; if(sy) sy.textContent=s;
   }catch(e){}
 }
-function goBackHome(){ _hpStats(); showScreen('home', true); setTimeout(showEnumeratorHome, 50); }
+function goBackHome(){ _hpStats(); showScreen('home', true); if(typeof fabHide==='function') fabHide(); setTimeout(showEnumeratorHome, 50); }
 function _showAdminSurveyLock(show){ var lock=document.getElementById('admin-survey-lock'); if(lock){ if(show) lock.classList.add('active'); else lock.classList.remove('active'); } }
 
 //  homeGoSurvey — enumerators only 
@@ -1454,7 +1519,18 @@ function homeGoSurvey(){
     return;
   }
   if(typeof _autoTimer!=='undefined'&&_autoTimer){clearInterval(_autoTimer);_autoTimer=null;}
-  showScreen('survey', true);
+  // Guard: if secsWrap is empty (init() failed on load), rebuild sections now
+  var _sw = document.getElementById('secsWrap');
+  if(_sw && _sw.querySelectorAll('.sec-card').length === 0 && typeof init === 'function'){
+    init();
+  }
+  // Start a fresh interview record, reset to section 0, and show survey screen
+  if(typeof newRec === 'function'){
+    newRec();
+  } else {
+    showScreen('survey', true);
+    if(typeof fabShow==='function') fabShow();
+  }
   // Update home→back button state after transition
   setTimeout(function(){ if(typeof _updateSurveyNavBtns==='function') _updateSurveyNavBtns(); }, 380);
 }

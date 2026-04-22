@@ -21,18 +21,182 @@ function mssSanitizeInput(val) {
     .slice(0, 1000);
 }
 
-// Validate required text fields before saving
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  MSS GUIDANCE TICKER — type + pause + slide-up engine
+//  Called from init() after sections are built.
+// ─────────────────────────────────────────────────────────────────────────────
+function MSS_initTickers() {
+  const MESSAGES = [
+    "All responses are confidential.",
+    "You may stop the interview at any time.",
+    "No names appear in any report.",
+    "Your honesty helps your community.",
+    "There are no right or wrong answers.",
+    "Recall actual numbers, not estimates.",
+    "Answer for your own household only.",
+    "It is fine to say I do not know.",
+    "Think carefully before answering.",
+    "Even small health issues matter here.",
+    "This data improves services near you.",
+    "Count all people sleeping in this house.",
+    "Include infants and the elderly.",
+    "Describe the house as it is today.",
+    "Note the main building materials used.",
+    "Include illnesses in the past 12 months.",
+    "Mention any chronic conditions.",
+    "Answer for all children under 5.",
+    "Include children no longer living.",
+    "Count meals eaten yesterday.",
+    "Include snacks and drinks.",
+    "All HIV answers are strictly private.",
+    "No result is shared without consent.",
+    "Describe the latrine actually used.",
+    "Note if shared with other households.",
+    "State the water source used most often.",
+    "Note if water is treated at home.",
+    "Answer based on your own experience.",
+    "Cultural practices are important data.",
+    "Note pests seen in the last month.",
+    "Include inside and outside the home.",
+    "Share any concerns freely.",
+    "Your observations guide local policy.",
+  ];
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  const TYPE_DELAY = 72;
+  const PAUSE_MS   = 3600;
+  const SLIDE_MS   = 480;
+
+  function runTicker(ticker) {
+    const textEl   = document.createElement('div');
+    textEl.className = 'sec-ticker-text';
+    const textNode = document.createTextNode('');
+    const cursor   = document.createElement('span');
+    cursor.className = 'sec-ticker-cursor';
+    textEl.appendChild(textNode);
+    textEl.appendChild(cursor);
+    ticker.appendChild(textEl);
+
+    let msgs   = shuffle(MESSAGES);
+    let msgIdx = Math.floor(Math.random() * msgs.length);
+    let paused = false;
+
+    ticker.addEventListener('mouseenter', () => { paused = true; });
+    ticker.addEventListener('mouseleave',  () => { paused = false; });
+
+    function typeMessage(msg) {
+      let i = 0;
+      textNode.textContent = '';
+      function step() {
+        if (i <= msg.length) {
+          textNode.textContent = msg.slice(0, i++);
+          setTimeout(step, paused ? TYPE_DELAY * 4 : TYPE_DELAY);
+        } else {
+          setTimeout(slideOut, PAUSE_MS);
+        }
+      }
+      step();
+    }
+
+    function slideOut() {
+      textEl.classList.add('ticker-exit');
+      setTimeout(slideIn, SLIDE_MS);
+    }
+
+    function slideIn() {
+      textEl.classList.remove('ticker-exit');
+      textEl.classList.add('ticker-enter');
+      msgIdx = (msgIdx + 1) % msgs.length;
+      if (msgIdx === 0) msgs = shuffle(MESSAGES);
+      const nextMsg = msgs[msgIdx];
+      void textEl.offsetWidth;
+      textEl.classList.remove('ticker-enter');
+      textEl.classList.add('ticker-enter-active');
+      setTimeout(() => {
+        textEl.classList.remove('ticker-enter-active');
+        typeMessage(nextMsg);
+      }, SLIDE_MS);
+    }
+
+    typeMessage(msgs[msgIdx]);
+  }
+
+  document.querySelectorAll('.sec-hdr').forEach(hdr => {
+    if (hdr.querySelector('.sec-ticker')) return;
+    const ticker = document.createElement('div');
+    ticker.className = 'sec-ticker';
+    hdr.appendChild(ticker);
+    runTicker(ticker);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  MSS CHIP SYNC — ensures all radio/checkbox chips show correct visual state
+//  on tap, regardless of CSS sibling selector support on the device browser.
+// ─────────────────────────────────────────────────────────────────────────────
+function MSS_syncChips(root) {
+  var container = root || document;
+
+  function syncGroup(input) {
+    var name = input.name;
+    var type = input.type;
+    if (type === 'radio') {
+      // Deselect all chips in this radio group
+      container.querySelectorAll('input[type="radio"][name="' + name + '"]')
+        .forEach(function(inp) {
+          var chip = inp.closest('.chip');
+          if (chip) chip.setAttribute('data-checked', 'false');
+        });
+    }
+    // Select this chip
+    var chip = input.closest('.chip');
+    if (chip) chip.setAttribute('data-checked', input.checked ? 'true' : 'false');
+  }
+
+  // Listen for changes on all chips in the container
+  container.querySelectorAll('.chip input[type="radio"], .chip input[type="checkbox"]')
+    .forEach(function(inp) {
+      inp.addEventListener('change', function() { syncGroup(this); });
+      // Also handle tap on the label (label click triggers change, but just in case)
+      var lbl = inp.nextElementSibling;
+      if (lbl && lbl.tagName === 'LABEL') {
+        lbl.addEventListener('click', function() {
+          setTimeout(function() { syncGroup(inp); }, 0);
+        });
+      }
+    });
+
+  // Sync current state on init (e.g. when loading saved record)
+  container.querySelectorAll('.chip input[type="radio"]:checked, .chip input[type="checkbox"]:checked')
+    .forEach(function(inp) { syncGroup(inp); });
+}
+
+
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  mssValidateSection — logic-driven, NOT CSS-driven.
+//  Uses getRequiredFields() which filters BASE_REQS through FIELD_DEPS
+//  so only fields applicable to this respondent are enforced.
+// ─────────────────────────────────────────────────────────────────────────────
 function mssValidateSection(secIndex) {
-  const reqs = REQS[secIndex];
-  if (!reqs) return { valid: true, errors: [] };
+  const record = (typeof collectAll === 'function') ? collectAll() : {};
+  const reqs = getRequiredFields(secIndex, record);
+  if (!reqs.length) return { valid: true, errors: [] };
   const errors = [];
   reqs.forEach(function([name, type, label]) {
-    if (type === 'radio') {
+    if (type === 'radio' || type === 'checkbox') {
       const checked = document.querySelector('[name="' + name + '"]:checked');
-      if (!checked) errors.push(label + ' is required');
-    } else if (type === 'checkbox') {
-      const checked = document.querySelector('[name="' + name + '"]:checked');
-      if (!checked) errors.push(label + ' — select at least one option');
+      if (!checked) errors.push(label + (type === 'checkbox' ? ' — select at least one option' : ' is required'));
     } else {
       const el = document.querySelector('[name="' + name + '"]');
       const val = (el && el.value) ? el.value.trim() : '';
@@ -46,40 +210,231 @@ function mssValidateSection(secIndex) {
 
 const SECS=[{label:'Consent Form'},{label:'A: Demography'},{label:'B: Housing'},{label:'C: Medical History'},{label:'D: Maternal & Child'},{label:'E: Nutrition'},{label:'F: HIV/AIDS'},{label:'G: Sanitation'},{label:'H: Environment & Water'},{label:'I: Cultural Practices'},{label:'J: Health Problems'},{label:'K: Pests & Vectors'},{label:'L: Challenges & Observations'}];
 
-// 
-//  REQUIRED FIELDS PER SECTION
-// 
-const REQS={
+// ─────────────────────────────────────────────────────────────────────────────
+//  BASE_REQS — static list of potentially required fields per section.
+//  DO NOT use directly for validation. Use getRequiredFields() which filters
+//  through FIELD_DEPS so only applicable fields are enforced.
+// ─────────────────────────────────────────────────────────────────────────────
+const BASE_REQS={
   0:[['consent_given','radio','Respondent Consent'],['interviewer_name','text','Interviewer Name'],['interview_date','text','Interview Date'],['interview_location','text','Village / Location']],
   1:[['a_age','text','Age of Respondent'],['a_gender','radio','Gender'],['a_tot_m','text','Total Males'],['a_tot_f','text','Total Females']],
   2:[['b_type','radio','Type of House'],['b_roof','radio','Roofing Material']],
   3:[['c_consult','radio','Consultation Sought']],
+  4:[['d_preg','radio','Ever Pregnant (D1)']],
+  5:[['e_meals','radio','Meals Per Day (E1)'],['e_enough','radio','Enough Food (E19)']],
   6:[['f_heard','radio','Heard about HIV/AIDS'],['f_tested','radio','HIV Test']],
   7:[['g_latrine','radio','Pit Latrine']],
   8:[['h_wsrc','checkbox','Water Source'],['h_treat','radio','Water Treatment']],
-  // Section L: all challenge fields are optional observations
+  9:[['i_rite','radio','Rite of Passage (I1)']],
+  // Sections 10 (J), 11 (K), 12 (L) — observational, no hard-required fields
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  FIELD_DEPS — declarative dependency graph.
+//  Each entry is: fieldName → function(record) → boolean (true = applicable)
+//  Fields NOT listed here are always applicable (unconditional).
+//  This is the single source of truth for conditional logic.
+// ─────────────────────────────────────────────────────────────────────────────
+const FIELD_DEPS = {
+  // ── Section A ──────────────────────────────────────────────────────────────
+  'a_move_r':   r => r.a_move === 'Yes',
+
+  // ── Section B ──────────────────────────────────────────────────────────────
+  'b_sep':      r => r.b_rooms !== '1',
+  'b_smoke_in': r => r.b_smoke === 'Yes',
+
+  // ── Section C ──────────────────────────────────────────────────────────────
+  'c_ill_age':  r => _hasValue(r, 'c_ill'),
+  'c_where':    r => _hasValue(r, 'c_ill') && r.c_consult === 'Yes',
+  'c_no_r':     r => _hasValue(r, 'c_ill') && r.c_consult === 'No',
+  'c_who':      r => _hasValue(r, 'c_ill'),
+  'c_accomp':   r => _hasValue(r, 'c_ill'),
+  'c_meds':     r => _hasValue(r, 'c_ill'),
+  'c_drug_d':   r => _hasValue(r, 'c_ill'),
+  'c_preg':     r => r.a_gender !== 'Male',
+  'c_deaths_n': r => r.c_deaths === 'Yes',
+  'c_dage':     r => r.c_deaths === 'Yes',
+  'c_dcause':   r => r.c_deaths === 'Yes',
+  'c_disab':    r => r.c_spec === 'Yes',
+  'c_disab_c':  r => r.c_spec === 'Yes',
+
+  // ── Section D — Maternal & Child (entire section N/A for Male) ─────────────
+  'd_preg':     r => r.a_gender !== 'Male',
+  'd_preg_age': r => r.a_gender !== 'Male' && r.d_preg === 'Yes',
+  'd_preg_n':   r => r.a_gender !== 'Male' && r.d_preg === 'Yes',
+  'd_anc':      r => r.a_gender !== 'Male' && r.d_preg !== 'No',
+  'd_anc_s':    r => r.a_gender !== 'Male' && r.d_anc === 'Yes',
+  'd_anc_w':    r => r.a_gender !== 'Male' && r.d_anc === 'Yes',
+  'd_anc_r':    r => r.a_gender !== 'Male' && r.d_anc === 'Yes',
+  'd_del':      r => r.a_gender !== 'Male' && r.d_preg !== 'No',
+  'd_del_r':    r => r.a_gender !== 'Male' && r.d_preg !== 'No',
+  'd_contra':   r => r.a_gender !== 'Male' && r.d_fp !== 'No',
+  'd_ct':       r => r.a_gender !== 'Male' && r.d_contra === 'Yes' && r.d_fp !== 'No',
+  'd_fp_c':     r => r.a_gender !== 'Male' && r.d_fp !== 'No',
+
+  // ── Section E — Nutrition & Lifestyle ──────────────────────────────────────
+  'e_skip_m':   r => r.e_skip === 'Yes',
+  'e_skip_w':   r => r.e_skip === 'Yes',
+  'e_short':    r => r.e_skip === 'Yes',
+  'e_pft':      r => r.e_pref === 'Yes',
+  'e_pr':       r => r.e_pref === 'Yes',
+  'e_prod':     r => r.e_garden === 'Yes',
+  'e_crops':    r => r.e_garden === 'Yes',
+  'e_taboo_d':  r => r.e_taboo === 'Yes',
+  'e_exer_f':   r => r.e_exer === 'Yes',
+  'e_yng':      r => r.e_kids === 'Yes',
+  'e_bf':       r => r.e_kids === 'Yes',
+  'e_bf_d':     r => r.e_kids === 'Yes',
+  'e_bf_s':     r => r.e_kids === 'Yes' && r.e_bf === 'No',
+  'e_wean':     r => r.e_kids === 'Yes',
+  'e_wf2':      r => r.e_kids === 'Yes',
+  'e_supp':     r => r.e_kids === 'Yes',
+  'e_supp_d':   r => r.e_kids === 'Yes' && r.e_supp === 'Yes',
+  'e_ninfo':    r => r.e_kids === 'Yes',
+  'e_ninfo_d':  r => r.e_kids === 'Yes' && r.e_ninfo === 'Yes',
+
+  // ── Section F — HIV/AIDS ────────────────────────────────────────────────────
+  'f_info':     r => r.f_heard !== 'No',
+  'f_screen':   r => r.f_heard !== 'No',
+  'f_trans':    r => r.f_heard !== 'No',
+  'f_prev':     r => r.f_heard !== 'No',
+  'f_treat':    r => r.f_heard !== 'No',
+  'f_aware':    r => r.f_heard !== 'No',
+  'f_test_d':   r => r.f_tested === 'Yes',
+  'f_arv':      r => r.f_fam_hiv === 'Yes',
+  'f_arv_r':    r => r.f_fam_hiv === 'Yes' && r.f_arv === 'No',
+  'f_afford':   r => r.f_pay === 'Yes',
+  'f_pay_m':    r => r.f_pay === 'Yes',
+  'f_out_f':    r => r.f_out === 'Yes',
+
+  // ── Section G — Sanitation ──────────────────────────────────────────────────
+  'g_lat_n':    r => r.g_latrine === 'Yes',
+  'g_lat_u':    r => r.g_latrine === 'Yes',
+  'g_lat_d':    r => r.g_latrine === 'Yes',
+  'g_lat_wd':   r => r.g_latrine === 'Yes',
+  'g_lat_p':    r => r.g_latrine === 'Yes',
+  'g_lat_s':    r => r.g_latrine === 'Yes',
+  'g_lat_c':    r => r.g_latrine === 'Yes',
+  'g_lat_t':    r => r.g_latrine === 'Yes',
+  'g_lat_td':   r => r.g_latrine === 'Yes' && r.g_lat_t === 'Yes',
+  'g_alt':      r => r.g_latrine === 'No',
+  'g_oral_a':   r => r.g_oral === 'Yes',
+
+  // ── Section H — Environment & Water ────────────────────────────────────────
+  'h_tm':       r => r.h_treat === 'Yes',
+
+  // ── Section I — Cultural Practices ─────────────────────────────────────────
+  'i_circ':     r => r.i_rite === 'Circumcision',
+  'i_age':      r => r.i_rite === 'Circumcision',
+  'i_circ_w':   r => r.i_rite === 'Circumcision',
+  'i_edu_c':    r => r.i_edu === 'Yes',
+  'i_birth_d':  r => r.i_birth === 'Yes',
+  'i_death_d':  r => r.i_death === 'Yes',
+  'i_bur_o':    r => r.i_bur === 'Other',
+  'i_winh_h':   r => r.i_winh === 'Yes',
+  'i_winh_b':   r => r.i_winh === 'Yes',
+  'i_winh_n':   r => r.i_winh === 'Yes',
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  LOGIC ENGINE — pure data-driven helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Returns true if a record field has a meaningful value (not empty/null/[]). */
+function _hasValue(record, name) {
+  const v = record[name];
+  if (v === undefined || v === null || v === '') return false;
+  if (Array.isArray(v)) return v.length > 0;
+  return true;
+}
+
+/**
+ * Returns true if fieldName is applicable given the current record state.
+ * Uses FIELD_DEPS as the single source of truth — NO CSS/DOM dependency.
+ */
+function isFieldApplicable(name, record) {
+  const dep = FIELD_DEPS[name];
+  if (!dep) return true; // no dependency = always applicable
+  try { return !!dep(record); } catch(e) { return true; }
+}
+
+/**
+ * Returns the list of required fields for a section, filtered by applicability.
+ * Replaces the old static REQS lookup — validation is now data-driven.
+ */
+function getRequiredFields(secIndex, record) {
+  const base = BASE_REQS[secIndex] || [];
+  return base.filter(function([name]) { return isFieldApplicable(name, record); });
+}
+
+/**
+ * Strips N/A fields from a collected record so inapplicable data is never saved.
+ * Always call this before persisting — use collectAll() only for UI population.
+ */
+function collectClean() {
+  const raw = collectAll();
+  const clean = { schema_version: raw.schema_version || '1.0.0' };
+  Object.keys(raw).forEach(function(k) {
+    // Always keep meta/identity fields
+    if (k.startsWith('_') || ['schema_version','interviewer_name','interview_date',
+        'interview_location','interview_location_custom','consent_given'].includes(k)) {
+      clean[k] = raw[k];
+      return;
+    }
+    if (isFieldApplicable(k, raw)) clean[k] = raw[k];
+  });
+  return clean;
+}
+
+// Keep REQS as an alias so any external code that still references it doesn't crash
+const REQS = BASE_REQS;
 
 // 
 //  STATE
 // 
-let cur=0,recId=null,recs={};
+let cur=0, recId=null, recs={};
+
+function generateRecordId(){
+  if(typeof crypto !== 'undefined' && crypto.randomUUID){
+    return 'rec-' + crypto.randomUUID();
+  }
+  return 'rec-' + Date.now() + '-' + Math.random().toString(36).slice(2) + '-' + Math.random().toString(36).slice(2);
+}
 function ls(){try{recs=JSON.parse(localStorage.getItem('chsa4')||'{}');}catch(e){recs={};}}
 function ss(){localStorage.setItem('chsa4',JSON.stringify(recs));}
 function cRec(){return recs[recId]||{};}
-function pRec(p){if(!recId)recId='R'+Date.now();recs[recId]={...cRec(),...p,_u:new Date().toLocaleString()};ss();}
+function pRec(p){
+  if(!recId) recId=generateRecordId();
+  // Merge then strip N/A fields so inapplicable data never persists
+  const merged = {...cRec(),...p,_u:new Date().toLocaleString()};
+  const clean = {};
+  const meta = ['_u','_c','_synced','_finished','schema_version',
+    'interviewer_name','interview_date','interview_location',
+    'interview_location_custom','consent_given'];
+  Object.keys(merged).forEach(k=>{
+    if(k.startsWith('_') || meta.includes(k) || isFieldApplicable(k,merged)){
+      clean[k]=merged[k];
+    }
+  });
+  recs[recId]=clean;
+  ss();
+}
 
 function collectAll(){
-  const r={};
+  const r={ schema_version: '1.0.0' };
   // Include hidden inputs (interviewer_name etc) + all form fields
   document.querySelectorAll('.sec-card input,.sec-card select,.sec-card textarea, input[type=hidden]').forEach(el=>{
     if(!el.name)return;
     if(el.type==='radio'||el.type==='checkbox'){
       if(el.checked){
-        // Build arrays for checkboxes (multi-select fields like c_ill, h_wsrc)
-        const existing=r[el.name];
-        if(existing===undefined) r[el.name]=el.value;
-        else r[el.name]=[].concat(existing,el.value);
+        // Build unique arrays for checkboxes (multi-select fields like c_ill, h_wsrc)
+        if(el.type==='radio'){
+          r[el.name]=el.value; // radio: last checked wins
+        } else {
+          const existing=[].concat(r[el.name]||[]).filter(Boolean);
+          if(!existing.includes(el.value)) existing.push(el.value);
+          r[el.name]=existing.length===1?existing[0]:existing;
+        }
       }
     } else if(el.value){
       // Sanitize free-text inputs to prevent XSS in generated reports
@@ -109,9 +464,20 @@ function loadInto(d){
       });
     });
   });
-  runAllRules();
+  setTimeout(() => runSectionRules(cur), 100);
+  setTimeout(() => MSS_syncChips(document), 150);
 }
-function saveCur(){if(!recId)recId='R'+Date.now();pRec(collectAll());}
+function saveCur(){
+  // Guard: never create/restore a record that was just deleted or has no context.
+  // recId is set to null by delRec() before this can fire, so we only
+  // generate a new ID when the user explicitly starts or resumes a record.
+  if(!recId) return;
+  // Always save current state — validation errors are warnings only.
+  // Validation blocks Next/Submit but must NEVER block Save Progress,
+  // so interviewers can save drafts mid-section without losing data.
+  // (Errors are still shown via validate() when pressing Next.)
+  pRec(collectAll());
+}
 function gv(name){const el=document.querySelector(`[name="${name}"]`);return el?el.value:'';}
 function gvn(name){return parseInt(gv(name))||0;}
 function gvRadio(name){const el=document.querySelector(`[name="${name}"]:checked`);return el?el.value:'';}
@@ -161,58 +527,70 @@ function vaxQuickFill1Child(){
 
 
 
-function runAllRules(){
-  ruleConsentAge();
-  ruleHouseholdTotals();
-  ruleAgeBracketsVsTotal();
-  ruleGenderPosition();
-  rulePregnancyGender();
-  ruleConsentBlock();
-  ruleLocation();
-  ruleSkipMeals();
-  ruleMoveAway();
-  ruleDeaths();
-  ruleLatrine();
-  ruleWaterTreatment();
-  ruleSmoking();
-  ruleBedrooms();
-  ruleDisability();
-  ruleBreastfeed();
-  ruleHIVFamily();
-  ruleWifeInherit();
-  ruleFoodShortage();
-  //  NEW HOUSING LOGIC RULES 
-  ruleHouseTypeVsRoof();
-  ruleHouseTypeVsFloor();
-  ruleHouseTypeVsWindows();
-  ruleHouseTypeVsLighting();
-  ruleFuelVsCooking();
-  ruleRoomsVsAnimals();
-  //  NEW ENHANCED LOGIC 
-  ruleEducationVsOccupation();
-  ruleMaritalVsAge();
-  ruleANCVsPregnancy();
-  ruleContraVsFP();
-  ruleWeightHeightPlausibility();
-  ruleLandSizeVsAnimals();
-  ruleWaterDistanceVsPollution();
-  ruleCircumcisionGender();
-  ruleDeathCauseAutoSuggest();
-  ruleIllnessTreatmentChain();
-  ruleHIVHeard();
-  ruleVaxTable();
-  //  NEW: Full per-section conditional rules 
-  ruleSecA();
-  ruleSecB();
-  ruleSecC();
-  ruleSecD();
-  ruleSecE();
-  ruleSecF();
-  ruleSecG();
-  ruleSecH();
-  ruleSecI();
-  updateIntegrityScore();
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  validateFullRecord — data-driven final validation.
+//  Skips fields that are not applicable for this respondent via isFieldApplicable.
+//  Also strips N/A values from the record before persisting (via collectClean).
+// ─────────────────────────────────────────────────────────────────────────────
+function validateFullRecord(record){
+  const missing = [];
+  Object.entries(BASE_REQS).forEach(([secIdx, fields]) => {
+    fields.forEach(([name, type, label]) => {
+      // Skip fields not applicable to this respondent (e.g. pregnancy for Male)
+      if (!isFieldApplicable(name, record)) return;
+      const val = record[name];
+      const empty = !val || (Array.isArray(val) && val.length === 0) || val === '';
+      if(empty) missing.push('Section ' + SECS[parseInt(secIdx)]?.label + ' — ' + label);
+    });
+  });
+  return { valid: missing.length === 0, missing };
 }
+
+function finalSubmit(){
+  const record = collectAll();
+  const check = validateFullRecord(record);
+  if(!check.valid){
+    alert('Cannot submit. Missing:\n' + check.missing.join('\n'));
+    return;
+  }
+  pRec(record);
+}
+
+const RULE_REGISTRY = {
+  global: [
+    runInferenceRules,
+    ruleConsentAge, ruleHouseholdTotals, ruleAgeBracketsVsTotal,
+    ruleGenderPosition, rulePregnancyGender, ruleConsentBlock,
+    ruleLocation, ruleSkipMeals, ruleMoveAway, ruleDeaths,
+    ruleLatrine, ruleWaterTreatment, ruleSmoking, ruleBedrooms,
+    ruleDisability, ruleBreastfeed, ruleHIVFamily, ruleWifeInherit,
+    ruleFoodShortage,
+    ruleHouseTypeVsRoof, ruleHouseTypeVsFloor, ruleHouseTypeVsWindows,
+    ruleHouseTypeVsLighting, ruleFuelVsCooking, ruleRoomsVsAnimals,
+    ruleEducationVsOccupation, ruleMaritalVsAge, ruleANCVsPregnancy,
+    ruleContraVsFP, ruleWeightHeightPlausibility, ruleLandSizeVsAnimals,
+    ruleWaterDistanceVsPollution, ruleCircumcisionGender,
+    ruleDeathCauseAutoSuggest, ruleIllnessTreatmentChain,
+    ruleHIVHeard, ruleVaxTable,
+  ],
+  section: {
+    1:[ruleSecA], 2:[ruleSecB], 3:[ruleSecC], 4:[ruleSecD],
+    5:[ruleSecE], 6:[ruleSecF], 7:[ruleSecG], 8:[ruleSecH], 9:[ruleSecI],
+    10:[ruleSecJ], 11:[ruleSecK], 12:[ruleSecL],
+  }
+};
+
+function runSectionRules(secIdx){
+  (RULE_REGISTRY.global || []).forEach(fn => { try { fn(); } catch(e){} });
+  const secFns = RULE_REGISTRY.section[secIdx] || [];
+  secFns.forEach(fn => { try { fn(); } catch(e){} });
+  if(typeof updateIntegrityScore === 'function') updateIntegrityScore();
+}
+
+// runAllRules() removed — was dead code never called anywhere.
+// Use runSectionRules(secIdx) which delegates to RULE_REGISTRY for all global + section rules.
 
 function updateIntegrityScore(){
   const warnings = document.querySelectorAll('.dyn-msg[style*="var(--red)"]').length;
@@ -480,9 +858,7 @@ function ruleConsentAge(){
   const ageEl = document.querySelector('[name="a_age"]');
   const ageGrp = ageEl?.closest('.form-group');
 
-  // Age must be 18–85 for respondent
-  if(ageEl) ageEl.min=18, ageEl.max=85;
-
+  // Age must be 18–85 (enforced in HTML input min/max and validate())
   // Show age warning
   if(age && (age < 18 || age > 85)){
     showFieldMsg(ageGrp,' Respondent must be 18–85 years old to participate','warn');
@@ -628,29 +1004,35 @@ function ruleGenderPosition(){
   if((pos==='Son'||pos==='Daughter') && marital==='Married'){
     showFieldMsg(marGrp,' Note: Son/Daughter recorded as Married — verify age','info');
   } else { clearFieldMsg(marGrp); }
+
+  // Pregnancy section dimming is owned by inferPregnancySectionFromGender (via runInferenceRules).
+  // Do NOT duplicate it here — inferPregnancySectionFromGender runs on every rules pass.
 }
 
 //  RULE: Pregnancy only valid for Female 
 function rulePregnancyGender(){
   const gender=gvRadio('a_gender');
-  // In Section C: if pregnancy = Yes but gender = Male → warn
+  // In Section C: if pregnancy = Yes but gender = Male → warn and auto-correct
   const pregEl=document.querySelector('[name="c_preg"]:checked');
   if(!pregEl) return;
   const pregGrp=pregEl.closest('.form-group');
   if(gender==='Male' && pregEl.value==='Yes'){
     showFieldMsg(pregGrp,' Respondent is Male — pregnancy response should be No','warn');
-    // Auto-correct
+    // Auto-correct c_preg → No
     document.querySelectorAll('[name="c_preg"]').forEach(el=>{ if(el.value==='No') el.checked=true; });
+    // Re-run Section D rules so pregnancy sub-fields dim immediately
+    try{ ruleSecD(); } catch(e){}
   }
 }
 
 //  RULE: Skip meal reasons auto-fill 
+// NOTE: e_meals is a radio group — must use gvRadio(), not gvn().
+// gvn() reads the value attribute as text so parseInt gives NaN; === 1 can never be true.
 function ruleSkipMeals(){
   const skip=gvRadio('e_skip');
-  const meals=gvn('e_meals');
-  // If meals=1, auto-suggest skip=Yes
+  const meals=gvRadio('e_meals'); // radio value is a string e.g. '1', '2', '3'
   const skipGrp=document.querySelector('[name="e_skip"]')?.closest('.form-group');
-  if(meals===1 && skip!=='Yes'){
+  if(meals==='1' && skip!=='Yes'){
     showFieldMsg(skipGrp,' Only 1 meal/day — consider checking if meals are being skipped','info');
   } else { clearFieldMsg(skipGrp); }
 }
@@ -915,13 +1297,172 @@ function dimGrpSoft(name, dim){
   grp.style.pointerEvents = dim ? 'none' : '';
 }
 
+function clearDependentFields(names){
+  names.forEach(name => {
+    document.querySelectorAll(`[name="${name}"]`).forEach(el => {
+      if(el.type === 'radio' || el.type === 'checkbox') el.checked = false;
+      else el.value = '';
+    });
+  });
+}
+
+// 
+//  INFERENCE ENGINE — auto-fill/pre-populate fields from earlier answers
+// 
+function runInferenceRules(){
+  inferAgeBracketFromRespondent();
+  inferHouseholdTotalFromGender();
+  inferDeathsFromMaritalStatus();
+  inferPositionFromGender();
+  inferPregnancySectionFromGender();
+}
+
+// INFERENCE: Respondent age + gender → pre-fill the correct age bracket cell with at least 1
+// e.g. Male, 35 → a_2159_m gets 1 if empty
+// Also clears the opposite-gender bracket that was previously auto-filled, so switching
+// Male→Female (or vice versa) doesn't leave a stale '1' that inflates household totals.
+function inferAgeBracketFromRespondent(){
+  const age    = gvn('a_age');
+  const gender = gvRadio('a_gender');
+  if(!age || !gender) return;
+
+  // Map age → bracket field key
+  const bracket =
+    age <= 1  ? 'a_01'   :
+    age <= 3  ? 'a_23'   :
+    age <= 5  ? 'a_45'   :
+    age <= 10 ? 'a_610'  :
+    age <= 15 ? 'a_1115' :
+    age <= 20 ? 'a_1620' :
+    age <= 59 ? 'a_2159' : 'a_60p';
+
+  // Clear the opposite bracket ONLY if it was auto-filled by this inference
+  // (identified by the title tag we set) — never touch deliberate entries
+  const oppSuffix = gender === 'Male' ? '_f' : '_m';
+  const oppEl = document.querySelector(`[name="${bracket}${oppSuffix}"]`);
+  if(oppEl && oppEl.title === 'Auto-filled: respondent counted here'){
+    oppEl.value = '0';
+    oppEl.style.background = '';
+    oppEl.title = '';
+  }
+
+  const suffix = gender === 'Male' ? '_m' : '_f';
+  const fieldName = bracket + suffix;
+  const el = document.querySelector(`[name="${fieldName}"]`);
+  if(!el) return;
+
+  // Only pre-fill if the cell is still 0 or empty — don't overwrite deliberate entries
+  const current = parseInt(el.value) || 0;
+  if(current === 0){
+    el.value = '1';
+    el.style.background = 'rgba(76,175,114,0.12)';
+    el.title = 'Auto-filled: respondent counted here';
+  }
+}
+
+// INFERENCE: Gender → auto-increment total M or F by 1 if not yet set.
+// Also clears the opposite total if it was previously auto-filled so that
+// switching Male→Female (or back) doesn't leave a stale 1 in the wrong column.
+function inferHouseholdTotalFromGender(){
+  const gender = gvRadio('a_gender');
+  if(!gender) return;
+
+  const oppField = gender === 'Male' ? 'a_tot_f' : 'a_tot_m';
+  const ownField = gender === 'Male' ? 'a_tot_m' : 'a_tot_f';
+  const oppEl = document.querySelector(`[name="${oppField}"]`);
+  const ownEl = document.querySelector(`[name="${ownField}"]`);
+
+  // Clear the opposite total ONLY if this code auto-filled it
+  if(oppEl && oppEl.title === 'Auto-filled: at least 1 (the respondent)'){
+    oppEl.value = '0';
+    oppEl.style.background = '';
+    oppEl.title = '';
+  }
+
+  // Nudge own total to 1 if still 0/empty and not deliberately set
+  if(ownEl){
+    const cur = parseInt(ownEl.value) || 0;
+    if(cur === 0){
+      ownEl.value = '1';
+      ownEl.style.background = 'rgba(76,175,114,0.12)';
+      ownEl.title = 'Auto-filled: at least 1 (the respondent)';
+    }
+  }
+}
+
+// INFERENCE: Marital status = Widowed → deaths must be at least 1
+// Pre-set c_deaths = Yes and c_deaths_n = 1 if not already filled
+function inferDeathsFromMaritalStatus(){
+  const marital = gvRadio('a_marital');
+  if(marital !== 'Widowed/Widower') return;
+
+  // Auto-tick c_deaths = Yes
+  const deathsYes = document.querySelector('[name="c_deaths"][value="Yes"]');
+  if(deathsYes && !deathsYes.checked){
+    deathsYes.checked = true;
+    deathsYes.dispatchEvent(new Event('change', {bubbles:true}));
+  }
+
+  // Set minimum deaths to 1 if currently 0 or empty
+  const deathsN = document.querySelector('[name="c_deaths_n"]');
+  if(deathsN){
+    const current = parseInt(deathsN.value) || 0;
+    if(current === 0){
+      deathsN.value = '1';
+      deathsN.min   = '1'; // enforce minimum going forward
+      deathsN.style.background = 'rgba(76,175,114,0.12)';
+      deathsN.title = 'Auto-filled: widowed status implies at least 1 death';
+      showFieldMsg(
+        deathsN.closest('.form-group'),
+        '↑ Pre-filled: respondent is widowed — at least 1 death expected',
+        'info'
+      );
+    } else {
+      // Already has a value — just enforce the minimum
+      deathsN.min = '1';
+    }
+  }
+}
+
+// INFERENCE: Gender → auto-select a sensible default position if not yet answered
+// Male → suggest Father; Female → suggest Mother (only if age ≥ 25 and field empty)
+function inferPositionFromGender(){
+  const gender = gvRadio('a_gender');
+  const age    = gvn('a_age');
+  const pos    = gvRadio('a_pos');
+  if(!gender || pos) return; // don't overwrite if already answered
+
+  if(age >= 25){
+    const suggest = gender === 'Male' ? 'Father' : 'Mother';
+    const el = document.querySelector(`[name="a_pos"][value="${suggest}"]`);
+    if(el && !el.checked){
+      el.checked = true;
+      const lbl = el.closest('.chip')?.querySelector('label');
+      if(lbl){ lbl.style.outline = '2px dashed var(--green)'; lbl.title = 'Auto-suggested from gender/age — change if needed'; }
+    }
+  }
+}
+
+// INFERENCE: Gender = Male → dim entire pregnancy section (Section D) early
+// Gender = Female → unlock it (ruleSecD then fine-tunes per d_preg answer)
+function inferPregnancySectionFromGender(){
+  const gender = gvRadio('a_gender');
+  if(!gender) return;
+  const pregFields = ['d_preg','d_preg_age','d_preg_n','d_anc','d_anc_s','d_anc_w','d_anc_r','d_del','d_del_r','d_contra','d_ct','d_fp','d_fp_c'];
+  const isMale = gender === 'Male';
+  pregFields.forEach(n => dimGrpSoft(n, isMale));
+}
+
 // 
 //  SECTION A — DEMOGRAPHY
 // 
 function ruleSecA(){
-  // A6=No → dim A7 (move reason)
+  // A6=No or unanswered → dim A7 (move reason)
   const move = gvRadio('a_move');
-  dimGrpSoft('a_move_r', move === 'No');
+  dimGrpSoft('a_move_r', move !== 'Yes');
+
+  // Run inference whenever section A fields change
+  runInferenceRules();
 }
 
 // 
@@ -965,11 +1506,8 @@ function ruleSecC(){
   dimGrpSoft('c_meds',   !hasIll);
   dimGrpSoft('c_drug_d', !hasIll);
 
-  // C10/C11/C12/C13 — handled by ruleDeaths(), just keep in sync (soft only)
-  const deaths = gvRadio('c_deaths');
-  dimGrpSoft('c_deaths_n', deaths !== 'Yes');
-  dimGrpSoft('c_dage',     deaths !== 'Yes');
-  dimGrpSoft('c_dcause',   deaths !== 'Yes');
+  // C10/C11/C12/C13 — fully managed by ruleDeaths() (nuanced limbo handling)
+  // Do NOT duplicate dims here — ruleDeaths() owns these fields.
 
   // C14=No → dim C15 (nature), C16 (cause)
   const spec = gvRadio('c_spec');
@@ -986,7 +1524,7 @@ function ruleSecD(){
   const contra = gvRadio('d_contra');
   const fp     = gvRadio('d_fp');
 
-  // D1=No (never pregnant) → dim D2–D9
+  // D1=No (never pregnant) → dim D2–D9 (soft dim, no confirm dialog)
   const noPreg = preg === 'No';
   ['d_preg_age','d_preg_n','d_anc','d_anc_s','d_anc_w','d_anc_r','d_del','d_del_r'].forEach(n=>dimGrpSoft(n, noPreg));
 
@@ -1075,11 +1613,16 @@ function ruleSecE(){
 //  SECTION F — HIV/AIDS
 // 
 function ruleSecF(){
+  const heard   = gvRadio('f_heard');
   const tested  = gvRadio('f_tested');
   const pay     = gvRadio('f_pay');
   const outreach= gvRadio('f_out');
   const famHIV  = gvRadio('f_fam_hiv');
   const arv     = gvRadio('f_arv');
+
+  // F1=No → dim F3–F7 (knowledge questions irrelevant if never heard of HIV)
+  const neverHeard = heard === 'No';
+  ['f_screen','f_trans','f_prev','f_treat','f_aware'].forEach(n => dimGrpSoft(n, neverHeard));
 
   // F8=No → dim F9 (test date)
   dimGrpSoft('f_test_d', tested !== 'Yes');
@@ -1127,8 +1670,28 @@ function ruleSecG(){
 //  SECTION H — ENVIRONMENT & WATER
 // 
 function ruleSecH(){
-  // H6 (treat water)=No → dim H7 (treatment method) — already in ruleWaterTreatment
-  // Nothing extra needed here beyond existing rules
+  const treat   = gvRadio('h_treat');
+  const wprot   = gvRadio('h_wprot');
+  const wlDist  = gvRadio('h_wld');
+
+  // H6 (treat)=No → dim H7 (treatment method)
+  dimGrpSoft('h_tm', treat !== 'Yes');
+
+  // NOTE: h_wp is the water pollution causes checkbox group (H11) — do NOT dim it here.
+  // There is no separate "why unprotected" field in the form.
+
+  // H11 (latrine-water distance) cross-check is handled by ruleWaterDistanceVsPollution
+  // H12 (waste disposal) — always active, no skip needed
+
+  // Water distance advisory: if very close to latrine, add info note
+  const distGrp = document.querySelector('[name="h_wld"]')?.closest('.form-group');
+  if(wlDist === '0–5 m'){
+    showFieldMsg(distGrp,' Water source within 5 m of latrine — HIGH contamination risk. Recommend boiling or treatment.','warn');
+  } else if(wlDist === '5–10 m'){
+    showFieldMsg(distGrp,' Water source within 10 m of latrine — moderate contamination risk. Verify treatment practice.','info');
+  } else {
+    clearFieldMsg(distGrp);
+  }
 }
 
 // 
@@ -1141,9 +1704,10 @@ function ruleSecI(){
   const death   = gvRadio('i_death');
   const bur     = gvRadio('i_bur');
 
-  // I1 ≠ Circumcision → dim I2 (who), I4 (where)
+  // I1 ≠ Circumcision → dim I2 (who), I3 (age), I4 (where)
   const noCirc = rite !== 'Circumcision';
   dimGrpSoft('i_circ',   noCirc);
+  dimGrpSoft('i_age',    noCirc);  // I3: age of rite only relevant for circumcision
   dimGrpSoft('i_circ_w', noCirc);
 
   // I5=No → dim I6 (education content)
@@ -1160,8 +1724,57 @@ function ruleSecI(){
   // I15 ≠ Other → dim other specify
   const burGrp = document.querySelector('[name="i_bur_o"]')?.closest('.form-group');
   if(burGrp){ burGrp.style.opacity = bur==='Other'?'1':'0.35'; burGrp.style.pointerEvents = bur==='Other'?'':'none'; }
+
+  // I9–I12: wife inheritance details — delegate to dedicated rule to avoid duplication gap
+  ruleWifeInherit();
 }
 
+
+// 
+//  SECTION J — COMMON HEALTH PROBLEMS IN COMMUNITY
+// 
+function ruleSecJ(){
+  // J is a community disease prevalence table — all fields optional (observational).
+  // No conditional dimming needed. Run integrity check: flag if NOTHING is ticked.
+  const anyTicked = !!document.querySelector('[name^="j_"]:checked');
+  const otherGrp  = document.querySelector('[name="j_other"]')?.closest('.form-group');
+  if(!anyTicked){
+    showFieldMsg(otherGrp || document.querySelector('[data-sec="10"] .form-group'),
+      ' No diseases ticked yet — please mark all conditions common in this community','info');
+  } else {
+    clearFieldMsg(otherGrp);
+  }
+}
+
+// 
+//  SECTION K — PESTS & VECTORS
+// 
+function ruleSecK(){
+  // K is a pest observation table — Present/Absent radios.
+  // Flag if a pest is marked Present but control method is blank.
+  const pests = ['rats','cockroaches','bedbugs','houseflies','ticks','jiggers','mosquitoes','fleas','tsetse_flies','others'];
+  pests.forEach(p => {
+    const present = document.querySelector(`[name="k_${p}"][value="Present"]:checked`);
+    const ctrl    = document.querySelector(`[name="k_${p}_c"]`);
+    if(!ctrl) return;
+    const ctrlGrp = ctrl.closest('tr') || ctrl.closest('.form-group');
+    if(present && !ctrl.value.trim()){
+      ctrl.style.borderColor = 'var(--red)';
+      ctrl.title = 'Please record the control method used for this pest';
+    } else {
+      ctrl.style.borderColor = '';
+      ctrl.title = '';
+    }
+  });
+}
+
+// 
+//  SECTION L — INTERVIEWER CHALLENGES & OBSERVATIONS
+// 
+function ruleSecL(){
+  // All fields optional — no conditional logic needed.
+  // Just a placeholder so the registry doesn't throw on section 12.
+}
 
 function showFieldMsg(grp, msg, type='warn'){
   if(!grp) return;
@@ -1195,10 +1808,7 @@ function validate(idx){
     }
   }
 
-  //  Age gate on section A 
-  if(idx===0){
-    // Age is on section A (idx=1) so just check consent here
-  }
+  //  Age gate — section 1 (Demography) 
   if(idx===1){
     const age=gvn('a_age');
     if(!age){ errors.push(['a_age','Age of Respondent']); }
@@ -1223,10 +1833,14 @@ function validate(idx){
     }
   }
 
-  //  Standard required fields 
-  const reqs=REQS[idx]||[];
+  //  Standard required fields — logic-driven via FIELD_DEPS, no CSS dependency 
+  const _record = collectAll();
+  const reqs = getRequiredFields(idx, _record);
   reqs.forEach(([name,type,label])=>{
-    const filled=type==='radio'||type==='checkbox'?!!document.querySelector(`[name="${name}"]:checked`):(document.querySelector(`[name="${name}"]`)?.value.trim()!=='');
+    const _el=document.querySelector(`[name="${name}"]`);
+    const filled=type==='radio'||type==='checkbox'
+      ?!!document.querySelector(`[name="${name}"]:checked`)
+      :(_el?.value.trim()!=='');
     if(!filled) errors.push([name,label]);
   });
   errors.forEach(([name,label])=>{ addErr(name,` "${label}" is required`); ok=false; });
@@ -1294,6 +1908,16 @@ function goSec(i, dir){
   const next  = cards[i];
   if(!next) return;
 
+  // Same card (e.g. reset to section 0 when already on 0) — skip animation entirely
+  if(prev && prev === next){
+    cards.forEach(c=>{ c.classList.remove('active','slide-in-right','slide-in-left','slide-out-left','slide-out-right'); c.style.transition=''; });
+    next.classList.add('active');
+    updUI();
+    setTimeout(() => runSectionRules(cur), 100);
+    setTimeout(() => MSS_syncChips(document), 150);
+    return;
+  }
+
   //  Outgoing card: slide out horizontally 
   if(prev && prev !== next){
     prev.classList.remove('active');
@@ -1327,12 +1951,13 @@ function goSec(i, dir){
     const top = wrap.getBoundingClientRect().top + window.scrollY - 4;
     if(window.scrollY > top) window.scrollTo({top:top,behavior:'smooth'});
   }
-  setTimeout(runAllRules, 100);
+  setTimeout(() => runSectionRules(cur), 100);
+  setTimeout(() => MSS_syncChips(document), 150);
 }
 function nextSec(){
   if(!validate(cur))return;
   saveCur();
-  showToast(' Saved');
+  showToast('✅ Section saved');
   if(cur<SECS.length-1) goSec(cur+1,'forward');
 }
 function prevSec(){saveCur();if(cur>0)goSec(cur-1,'back');}
@@ -1369,49 +1994,169 @@ function updUI(){
 //  RECORDS
 // 
 function newRec(){
-  saveCur();
-  recId='R'+Date.now();
-  recs[recId]={_c:new Date().toLocaleString(),_u:new Date().toLocaleString()};
+  // Save current record first without any validation block
+  if(recId) pRec(collectAll());
+  // Generate fresh ID and initialise clean empty record
+  recId = generateRecordId();
+  recs[recId] = {_c: new Date().toLocaleString(), _u: new Date().toLocaleString()};
   ss();
+  // Clear ALL form inputs — radios, checkboxes, text, selects
+  document.querySelectorAll('.sec-card input,.sec-card select,.sec-card textarea').forEach(function(el){
+    if(!el.name) return;
+    if(el.type==='radio'||el.type==='checkbox') el.checked = false;
+    else el.value = '';
+  });
+  // Reset chip visual states
+  document.querySelectorAll('.chip').forEach(function(c){
+    c.setAttribute('data-checked','false');
+    c.classList.remove('sel','selected','active');
+  });
+  // Clear auto-fill markers so inference engine starts clean
+  document.querySelectorAll('[title^="Auto-filled"]').forEach(function(el){
+    el.value = '';
+    el.style.background = '';
+    el.title = '';
+  });
+  // Reset opacity/pointer-events on all form-groups (rules will re-apply)
+  document.querySelectorAll('.form-group').forEach(function(g){
+    g.style.opacity = '';
+    g.style.pointerEvents = '';
+    g.style.border = '';
+  });
+  // loadInto({}) triggers chip sync and re-runs rules on blank state
   loadInto({});
+  // Force cur to -1 so goSec(0) treats it as a fresh navigation (prev !== next)
+  cur = -1;
   goSec(0);
   renDrw();
-  //  Make sure survey screen is visible 
+  // Make sure survey screen is visible
   if(typeof showScreen==='function') showScreen('survey');
-  //  Re-fill interviewer name so consent form is not empty 
+  // Show FAB
+  if(typeof fabShow==='function') fabShow();
+  // Re-fill interviewer name so consent form is not empty
   var name = typeof getUserName==='function' ? getUserName() : (localStorage.getItem('chsa_user_name')||'');
   if(name && typeof fillInterviewerFields==='function') fillInterviewerFields(name);
-  showToast(' New interview started');
+  showToast('✅ New interview started — form cleared');
 }
-function loadRec(id){saveCur();recId=id;loadInto(recs[id]||{});goSec(0);closeDrw();showToast('Record loaded');}
-function delRec(id){if(!confirm('Delete this record?'))return;delete recs[id];ss();if(recId===id){recId=null;loadInto({});}renDrw();showToast('Deleted',true);}
+function loadRec(id){saveCur();recId=id;loadInto(recs[id]||{});goSec(0);closeDrw();if(typeof fabShow==='function') fabShow();showToast('Record loaded');}
+function delRec(id){
+  // Native confirm() is blocked in many mobile PWA/WebView contexts — use inline modal
+  var existing = document.getElementById('mss-del-modal');
+  if(existing) existing.remove();
+  var r = recs[id] || {};
+  var label = r.a_age ? ('Age ' + r.a_age + ', ' + (r.a_gender||'?') + (r.interview_location ? ' — ' + r.interview_location : '')) : (r.interview_location || 'New Record');
+  var modal = document.createElement('div');
+  modal.id = 'mss-del-modal';
+  modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center;';
+  modal.innerHTML = '<div style="background:var(--bg-base,#fff);width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:24px 20px calc(24px + env(safe-area-inset-bottom));box-shadow:0 -8px 40px rgba(0,0,0,.4);">'
+    + '<div style="font-size:1.8rem;text-align:center;margin-bottom:10px">🗑️</div>'
+    + '<div style="font-size:1rem;font-weight:800;color:var(--text-1,#0d3b66);text-align:center;margin-bottom:6px">Delete Record?</div>'
+    + '<div style="font-size:.8rem;color:var(--text-2,#5d7a8a);text-align:center;margin-bottom:20px;line-height:1.5">'
+    + '<strong>' + label + '</strong><br>This cannot be undone. The record will be removed from this device.'
+    + (r._synced ? '<br><span style="color:#1e5c38;font-size:.75rem">✓ Already uploaded to server — data is safe.</span>' : '')
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column;gap:9px">'
+    + '<button id="mss-del-confirm" style="padding:14px;background:#dc2626;color:#fff;border:none;border-radius:12px;font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer">🗑️ Yes, Delete</button>'
+    + '<button id="mss-del-cancel" style="padding:13px;background:var(--bg-raised,#f0f4f8);color:var(--text-2,#5d7a8a);border:1.5px solid var(--border-1,#dde8f0);border-radius:12px;font-family:inherit;font-size:.88rem;font-weight:600;cursor:pointer">Cancel</button>'
+    + '</div></div>';
+  document.body.appendChild(modal);
+  document.getElementById('mss-del-confirm').onclick = function(){
+    modal.remove();
+    // Clear active record reference FIRST — before ss() — so any autosave
+    // triggered during or after this tick cannot resurrect the deleted record.
+    if(recId===id){ recId=null; loadInto({}); }
+    delete recs[id];
+    ss();
+    renDrw();
+    showToast('Record deleted');
+  };
+  document.getElementById('mss-del-cancel').onclick = function(){ modal.remove(); };
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+}
 function renDrw(){
-  const el=document.getElementById('drwList');
-  const keys=Object.keys(recs);
-  if(!keys.length){el.innerHTML='<div class="empty-recs">No saved records yet.</div>';return;}
-  el.innerHTML=keys.reverse().map(id=>{
-    const r=recs[id]||{};
-    const nm=r.a_age?`Age ${r.a_age}, ${r.a_gender||'?'} — ${r.interview_location||''}`:r.interview_location||'New Record';
-    const flags=[];
-    if(r.consent_given==='No') flags.push(' No Consent');
-    if(r.a_age && (r.a_age<18||r.a_age>85)) flags.push(' Age');
-    const syncBadge = r._synced
-      ? `<span style="font-size:0.62rem;background:#e8f5ed;color:#1e5c38;padding:1px 6px;border-radius:99px;margin-left:4px;font-weight:700"> Uploaded</span>`
+  var el = document.getElementById('drwList');
+  if(!el) return;
+  // Always re-read from localStorage so the list is never stale
+  ls();
+  var keys = Object.keys(recs);
+
+  // Update count badge
+  var badge = document.getElementById('drw-count');
+
+  // Filter: only show records with real content
+  var listKeys = keys.filter(function(id){
+    var r = recs[id] || {};
+    return r._finished || r._synced || r.a_age || r.interview_location || r.interview_date;
+  });
+
+  if(badge) badge.textContent = listKeys.length ? listKeys.length + ' record' + (listKeys.length===1?'':'s') : '';
+
+  if(!listKeys.length){
+    el.innerHTML = '<div style="text-align:center;padding:32px 16px;color:rgba(255,255,255,.3);font-size:.84rem;">No saved records yet.<br><span style="font-size:.72rem;opacity:.6;">Complete at least one section and tap Save Progress.</span></div>';
+    return;
+  }
+
+  el.innerHTML = listKeys.slice().reverse().map(function(id){
+    var r = recs[id] || {};
+    var age  = r.a_age  ? 'Age ' + r.a_age : '';
+    var gen  = r.a_gender || '';
+    var loc  = r.interview_location || r.interview_location_custom || '';
+    var date = r.interview_date || r._u || '';
+    var nm   = (age || gen)
+      ? [age, gen].filter(Boolean).join(', ') + (loc ? ' — ' + loc : '')
+      : (loc || 'New Record');
+
+    var isActive = (id === recId);
+
+    var syncBadge = r._synced
+      ? '<span style="font-size:.62rem;background:rgba(30,92,56,.5);color:#4ade80;padding:2px 8px;border-radius:99px;font-weight:700;">Uploaded</span>'
       : r._finished
-        ? `<span style="font-size:0.62rem;background:#fff8e1;color:#d35400;padding:1px 6px;border-radius:99px;margin-left:4px;font-weight:700">⏳ Pending upload</span>`
-        : `<span style="font-size:0.62rem;background:#f0f0f0;color:#888;padding:1px 6px;border-radius:99px;margin-left:4px;font-weight:700"> In progress</span>`;
-    return `<div class="rec-item ${id===recId?'act':''}" onclick="loadRec('${id}')">
-      <div>
-        <div class="rec-name">${nm} ${flags.map(f=>`<span style="font-size:0.65rem;background:#fdecea;color:#c00;padding:1px 6px;border-radius:99px;margin-left:4px">${f}</span>`).join('')}${syncBadge}</div>
-        <div class="rec-meta">${r._u||''}</div>
-      </div>
-      <button class="rec-del" onclick="event.stopPropagation();delRec('${id}')"></button>
-    </div>`;
+        ? '<span style="font-size:.62rem;background:rgba(211,84,0,.3);color:#fb923c;padding:2px 8px;border-radius:99px;font-weight:700;">Pending sync</span>'
+        : '<span style="font-size:.62rem;background:rgba(255,255,255,.08);color:rgba(255,255,255,.4);padding:2px 8px;border-radius:99px;font-weight:600;">In progress</span>';
+
+    var flagBadges = '';
+    if(r.consent_given==='No') flagBadges += '<span style="font-size:.62rem;background:rgba(220,38,38,.3);color:#f87171;padding:2px 8px;border-radius:99px;font-weight:700;">No Consent</span>';
+    if(r.a_age && (r.a_age<18||r.a_age>85)) flagBadges += '<span style="font-size:.62rem;background:rgba(220,38,38,.3);color:#f87171;padding:2px 8px;border-radius:99px;font-weight:700;">Age Flag</span>';
+
+    var deleteSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>';
+
+    return '<div style="'
+      + 'background:' + (isActive ? 'rgba(37,99,235,.15)' : 'rgba(255,255,255,.05)') + ';'
+      + 'border:1px solid ' + (isActive ? 'rgba(37,99,235,.4)' : 'rgba(255,255,255,.07)') + ';'
+      + 'border-radius:12px;padding:12px 14px;'
+      + 'display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;">'
+
+      + '<div onclick="loadRec(\'' + id + '\')" style="flex:1;min-width:0;">'
+        + '<div style="color:#e2e8f0;font-size:.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:5px;">' + nm + '</div>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">'
+          + syncBadge + flagBadges
+          + (date ? '<span style="font-size:.62rem;color:rgba(255,255,255,.28);margin-left:2px;">' + date + '</span>' : '')
+        + '</div>'
+      + '</div>'
+
+      + '<button onclick="event.stopPropagation();delRec(\'' + id + '\')" '
+        + 'style="width:32px;height:32px;border-radius:8px;background:rgba(220,38,38,.12);border:1px solid rgba(220,38,38,.2);color:#f87171;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;" '
+        + 'aria-label="Delete">'
+        + deleteSvg
+      + '</button>'
+    + '</div>';
   }).join('');
 }
 
-function openDrawer(){renDrw();document.getElementById('ov').classList.add('open');document.getElementById('drawer').classList.add('open');}
-function closeDrw(){document.getElementById('ov').classList.remove('open');document.getElementById('drawer').classList.remove('open');}
+
+function openDrawer(){
+  renDrw();
+  var ov  = document.getElementById('ov');
+  var drw = document.getElementById('drawer');
+  if(ov)  { ov.style.display = 'block'; }
+  if(drw) { drw.style.display = 'flex'; }
+}
+function closeDrw(){
+  var ov  = document.getElementById('ov');
+  var drw = document.getElementById('drawer');
+  if(ov)  { ov.style.display = 'none'; }
+  if(drw) { drw.style.display = 'none'; }
+}
 
 // 
 //  TOAST
@@ -1513,7 +2258,7 @@ function openReportWindow(html, type){
 
   if(titleEl) titleEl.textContent = type==='brief' ? ' Brief Report' : ' Full Report';
   overlay.classList.add('open');
-  setTimeout(showSupportPrompt, 4000);
+  // Support prompt removed — Ministry of Health deployment
 }
 
 function printReport(){
@@ -1792,9 +2537,12 @@ function buildFullReport(){
     const title = hdr.querySelector('.sec-title')?.textContent||'Section '+(i+1);
     const badge = hdr.querySelector('.sec-badge')?.textContent||'';
     const color = hdr.style.background||'linear-gradient(135deg,#1e5c38,#27764a)';
-    // Collect all answered fields in this section
+    // Collect all answered fields in this section — skip dimmed groups (gender-gated etc.)
     let rows='';
     body.querySelectorAll('.form-group').forEach(grp=>{
+      // Skip fields dimmed/disabled by conditional rules (use <= 0.5 to catch 0.5 exactly)
+      const grpOp = parseFloat(grp.style.opacity);
+      if((!isNaN(grpOp) && grpOp <= 0.5) || grp.style.pointerEvents === 'none') return;
       const lbl = grp.querySelector('.ql')?.textContent?.replace('*','').trim();
       if(!lbl) return;
       // Get value
@@ -1872,12 +2620,15 @@ document.addEventListener('change',e=>{
   if(!e.target.matches('input,select,textarea')) return;
   // Always do a full collectAll save — guarantees arrays for checkboxes are correct
   if(recId) saveCur();
-  setTimeout(runAllRules, 50);
+  setTimeout(() => runSectionRules(cur), 100);
+  setTimeout(() => MSS_syncChips(document), 150);
 });
 
-// Also run rules on numeric input (not just change)
+// Also run rules on text/numeric input (not just on change)
 document.addEventListener('input',e=>{
-  if(e.target.type==='number') setTimeout(runAllRules,100);
+  if(e.target.type==='number' || e.target.type==='text' || e.target.tagName==='TEXTAREA'){
+    setTimeout(() => runSectionRules(cur), 100);
+  }
 });
 
 //  FORM HELPERS 
@@ -1892,7 +2643,7 @@ function fg(c){return `<div class="form-group">${c}</div>`;}
 function vb(){return `<div class="val-banner"> Please fill in all required fields before going to next section.</div>`;}
 function sub(t){return `<div class="sub-ttl">${t}</div>`;}
 function sec(badge,title,body,color1='#1e5c38',color2='#27764a'){
-  return `<div class="sec-hdr" style="background:linear-gradient(135deg,${color1} 0%,${color2} 100%)"><div class="sec-badge">${badge}</div><div class="sec-title">${title}</div></div><div class="sec-body">${vb()}${body}</div>`;
+  return `<div class="sec-hdr"><div class="sec-badge">${badge}</div><div class="sec-title">${title}</div></div><div class="sec-body">${vb()}${body}</div>`;
 }
 
 //  SECTIONS 
@@ -1926,10 +2677,11 @@ return sec('Introduction','Consent Form',`
 ${fg(q('Q1','Interview Date','req')+`<input class="form-input" type="date" name="interview_date" value="${today}">`)}
 
 ${fg(q('Q2','Village / Location','req')+`
-<input class="form-input" type="text" name="interview_location" id="interview_location_input"
-  placeholder="e.g. Nyamebondo" maxlength="60" autocomplete="off"
-  oninput="sanitizeLocationInput(this)">
-<p class="info-note">Type the village name. Use a hyphen for compound names (e.g. South-Nyamebondo or Nyamebondo-2). Spaces are automatically converted to hyphens.</p>`)}
+<select class="form-input" name="interview_location" id="interview_location_input"
+  onchange="if(typeof ruleLocation==='function')ruleLocation()">
+  <option value="">— Select village —</option>
+</select>
+<p class="info-note" id="village-load-hint">Loading villages…</p>`)}
 
 ${fg(q('Q3','Does respondent consent to this interview?','req')+chips(radio('consent_given','Yes',' Yes — Consents')+radio('consent_given','No',' No — Declines'))+'<p class="info-note">If respondent declines, stop the interview.</p>')}
 `,'#1a5276','#1f618d');}
@@ -1937,7 +2689,7 @@ ${fg(q('Q3','Does respondent consent to this interview?','req')+chips(radio('con
 function bSecA(){
 const ab=[['0–1 yrs','a_01'],['2–3 yrs','a_23'],['4–5 yrs','a_45'],['6–10 yrs','a_610'],['11–15 yrs','a_1115'],['16–20 yrs','a_1620'],['21–59 yrs','a_2159'],['60+ yrs','a_60p']];
 return sec('Section A','Demography Profile',`
-${fg(q('A1','Age of Respondent (Years)','req')+ni('a_age',0,120,'e.g. 35'))}
+${fg(q('A1','Age of Respondent (Years)','req')+ni('a_age',18,85,'e.g. 35'))}
 ${fg(q('A2','Gender','req')+chips(radio('a_gender','Male','Male')+radio('a_gender','Female','Female')))}
 ${fg(q('A3','Position in Family')+chips(radio('a_pos','Father','Father')+radio('a_pos','Mother','Mother')+radio('a_pos','Son','Son')+radio('a_pos','Daughter','Daughter')+radio('a_pos','Daughter in-law','Daughter in-law')+radio('a_pos','Grandchild','Grandchild')+radio('a_pos','Other','Other'))+ti('a_pos_other','Other — specify...'))}
 ${fg(q('A4','Marital Status')+chips(radio('a_marital','Single','Single')+radio('a_marital','Married','Married')+radio('a_marital','Divorced/Separated','Divorced')+radio('a_marital','Widowed/Widower','Widowed')))}
@@ -2284,19 +3036,113 @@ function init(){
   BUILDERS.forEach((fn,i)=>{
     const d=document.createElement('div');
     d.className='sec-card'+(i===0?' active':'');
+    d.setAttribute('data-sec', String(i+1));
     d.innerHTML=fn();
     w.appendChild(d);
   });
-  const keys=Object.keys(recs);
-  if(keys.length){recId=keys[keys.length-1];loadInto(recs[recId]||{});}
-  else{recId='R'+Date.now();recs[recId]={_c:new Date().toLocaleString(),_u:new Date().toLocaleString()};ss();}
+  // Start with a fresh blank record but keep all existing saved records.
+  // ls() already loaded recs from localStorage above — just add the new entry.
+  // Do NOT call ls() again here; that would discard the already-loaded recs object.
+  recId = generateRecordId();
+  recs[recId] = {_c: new Date().toLocaleString(), _u: new Date().toLocaleString()};
+  ss(); // writes all existing records + new blank one back to localStorage
   updUI();renDrw();
+  MSS_initTickers();
+  MSS_syncChips(document);
   // Fill interviewer name now that the consent card DOM exists
   const name=getUserName();
   if(name) fillInterviewerFields(name);
-  setTimeout(runAllRules,200);
+  setTimeout(() => runSectionRules(cur), 100);
+  // Load villages for the dropdown (institution-specific)
+  _loadVillageDropdown();
 }
 document.addEventListener('DOMContentLoaded',init);
+
+// ── VILLAGE DROPDOWN LOADER ──────────────────────────────────────────────────
+async function _loadVillageDropdown() {
+  const sel  = document.getElementById('interview_location_input');
+  const hint = document.getElementById('village-load-hint');
+  if (!sel) return;
+
+  // Get institution_id from session
+  let institution_id = '';
+  try {
+    const sess = (typeof authGetSession === 'function') ? authGetSession() : null;
+    institution_id = (sess && (sess.institution_id || sess.institutionId)) || '';
+    if (!institution_id) {
+      // fallback: try localStorage
+      const raw = localStorage.getItem('chsa_session') || localStorage.getItem('chsa_auth') || '{}';
+      const s = JSON.parse(raw);
+      institution_id = s.institution_id || s.institutionId || '';
+    }
+  } catch (_) {}
+
+  if (!institution_id) {
+    if (hint) hint.textContent = 'Could not determine institution. Contact admin.';
+    return;
+  }
+
+  try {
+    // Fetch village_list via the JWT-authenticated profile API.
+    // village_list is the canonical jsonb column; village is a legacy plain-text fallback.
+    let villages = [];
+
+    // Zero-th try: session cache written at login — instant, works offline
+    try {
+      const _s = (typeof authGetSession === 'function') ? authGetSession() : null;
+      if (Array.isArray(_s?.village_list) && _s.village_list.length) villages = _s.village_list;
+    } catch (_) {}
+
+    // First try: profile API (requires HS to be loaded)
+    if (!villages.length && window.HS && window.HS.HSAdmin && window.HS.HSAdmin.getInstitutionProfile) {
+      try {
+        const prof = await window.HS.HSAdmin.getInstitutionProfile(institution_id);
+        if (Array.isArray(prof?.village_list) && prof.village_list.length) {
+          villages = prof.village_list;
+        } else if (typeof prof?.village === 'string' && prof.village.trim()) {
+          villages = prof.village.split(',').map(v => v.trim()).filter(Boolean);
+        }
+      } catch (_) { /* fall through */ }
+    }
+
+    // Second try: raw fetch in case HS is not yet initialised
+    if (!villages.length) {
+      const token = localStorage.getItem('hs_jwt_token')
+                 || (() => { try { return JSON.parse(localStorage.getItem('chsa_session')||'{}').token||''; } catch { return ''; } })()
+                 || (() => { try { return JSON.parse(localStorage.getItem('chsa_auth')||'{}').token||''; } catch { return ''; } })();
+      const res = await fetch(
+        `/api/admin/profile?institution_id=${encodeURIComponent(institution_id)}`,
+        { headers: { 'Authorization': 'Bearer ' + token } }
+      );
+      if (res.ok) {
+        const body = await res.json();
+        if (Array.isArray(body?.village_list) && body.village_list.length) {
+          villages = body.village_list;
+        } else if (typeof body?.village === 'string' && body.village.trim()) {
+          villages = body.village.split(',').map(v => v.trim()).filter(Boolean);
+        }
+      }
+    }
+
+    // Clear and repopulate
+    sel.innerHTML = '<option value="">— Select village —</option>';
+    villages.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+
+    if (hint) {
+      hint.textContent = villages.length
+        ? `${villages.length} village${villages.length > 1 ? 's' : ''} available`
+        : 'No villages set up yet — contact your institution admin.';
+    }
+  } catch (err) {
+    console.warn('[village dropdown]', err);
+    if (hint) hint.textContent = 'Could not load villages — check connection.';
+  }
+}
+
 
 // 
 
@@ -2324,12 +3170,13 @@ async function checkCorrectionNotifications(){
     var name = localStorage.getItem('chsa_user_name');
     if(!name) return;
     var nameEncoded = encodeURIComponent(name.trim());
+    var token = localStorage.getItem('hs_jwt_token') || sessionStorage.getItem('hs_jwt_token') || '';
+    var apiBase = window.HS_API_BASE || '';
+    var headers = {'Content-Type':'application/json'};
+    if(token) headers['Authorization'] = 'Bearer '+token;
     var res = await fetch(
-      SUPABASE_URL+'/rest/v1/'+SYNC_TABLE+
-      '?needs_correction=eq.true'+
-      '&interviewer=ilike.'+nameEncoded+
-      '&select=record_id,interview_date,location,correction_notes,interviewer',
-      {headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY}}
+      apiBase+'/api/survey/mine?needs_correction=true&interviewer='+nameEncoded,
+      {headers:headers}
     );
     if(!res.ok) return;
     var flagged = await res.json();
@@ -2388,3 +3235,163 @@ function showCorrectionPrompt(records){
     '</div>';
   document.body.appendChild(el);
 }
+
+// ── Student FAB ──
+(function () {
+  'use strict';
+  var fab, fabTimer;
+
+  function collapse() {
+    if (!fab) return;
+    fab.classList.remove('fab-active');
+    fab.classList.add('fab-inactive');
+  }
+
+  function initFab() {
+    fab = document.getElementById('fab-container');
+    var fabMain = document.getElementById('fab-main');
+    if (!fab || !fabMain) return;
+
+    // Global helpers — called by newRec, loadRec, and survey-auth.js (homeGoSurvey)
+    window.fabShow = function () {
+      fab.classList.add('fab-visible');
+    };
+    window.fabHide = function () {
+      fab.classList.remove('fab-visible', 'fab-active');
+      fab.classList.add('fab-inactive');
+    };
+
+    // If survey screen is already visible on load (returning user skips home page),
+    // show the FAB immediately instead of waiting for a nav event.
+    setTimeout(function () {
+      var surveyWrap = document.getElementById('survey-wrap');
+      if (surveyWrap && surveyWrap.style.display !== 'none' && surveyWrap.style.display !== '') {
+        window.fabShow();
+      }
+    }, 800);
+
+    fabMain.addEventListener('click', function () {
+      var open = fab.classList.contains('fab-active');
+      fab.classList.toggle('fab-active',  !open);
+      fab.classList.toggle('fab-inactive', open);
+      clearTimeout(fabTimer);
+      if (!open) fabTimer = setTimeout(collapse, 4000);
+    });
+
+    document.getElementById('btn-fab-save').addEventListener('click', function () {
+      saveCur();
+      showToast('✅ Progress saved');
+      collapse();
+    });
+
+    document.getElementById('btn-fab-sync').addEventListener('click', function () {
+      collapse();
+      if (typeof openSyncModal === 'function') openSyncModal();
+      else if (typeof syncAll === 'function') syncAll();
+    });
+
+    document.getElementById('btn-fab-restore').addEventListener('click', function () {
+      collapse();
+      openRestoreModal();
+    });
+  }
+
+  window.openRestoreModal = function () {
+    var modal  = document.getElementById('restore-modal');
+    var status = document.getElementById('restore-status');
+    var list   = document.getElementById('restore-list');
+    modal.style.display = 'flex';
+    list.innerHTML = '';
+    status.textContent = 'Fetching your records from server\u2026';
+
+    var userName = localStorage.getItem('chsa_user_name');
+    if (!userName) { status.textContent = 'Not logged in.'; return; }
+    if (!navigator.onLine) { status.textContent = 'You are offline \u2014 connect to restore records.'; return; }
+
+    // Use secure API layer if HS_API_BASE is configured, otherwise fall back to direct Supabase
+    var apiBase = window.HS_API_BASE || '';
+    var token = localStorage.getItem('hs_jwt_token') || sessionStorage.getItem('hs_jwt_token') || '';
+    var fetchPromise;
+    if (apiBase) {
+      // Use query param so the backend doesn't confuse "my-records" with a UUID record id
+      fetchPromise = fetch(apiBase + '/api/survey/mine', {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        }
+      });
+    } else {
+      var table = window.SYNC_TABLE || 'health_surveys';
+      fetchPromise = fetch(window.SUPABASE_URL + '/rest/v1/' + table +
+        '?interviewer=ilike.' + encodeURIComponent(userName.trim()) +
+        '&select=*&order=interview_date.desc&limit=50', {
+        headers: { apikey: window.SUPABASE_KEY, Authorization: 'Bearer ' + window.SUPABASE_KEY }
+      });
+    }
+
+    fetchPromise
+    .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function (rows) {
+      if (!Array.isArray(rows) || !rows.length) {
+        status.textContent = 'No records found on the server for "' + userName + '".';
+        return;
+      }
+      var nameLower = userName.trim().toLowerCase();
+      rows = rows.filter(function (r) {
+        return r.interviewer && r.interviewer.trim().toLowerCase() === nameLower;
+      });
+      if (!rows.length) { status.textContent = 'No matching records found.'; return; }
+
+      status.textContent = rows.length + ' record(s) — tap one to load it back into the form.';
+
+      rows.forEach(function (row) {
+        var card = document.createElement('button');
+        card.style.cssText = 'display:block;width:100%;text-align:left;padding:13px 15px;margin-bottom:9px;background:#f0f6ff;border:1.5px solid #c5d9f7;border-radius:13px;font-family:inherit;cursor:pointer;';
+        card.innerHTML =
+          '<div style="font-weight:800;color:#0d3b66;font-size:.9rem">📋 ' + (row.interview_date || 'Unknown date') + '</div>' +
+          '<div style="font-size:.74rem;color:#5d7a8a;margin-top:3px">📍 ' + (row.location || 'Unknown location') + '</div>';
+
+        card.addEventListener('click', function () {
+          // detect which column holds the full form JSON
+          var dataKeys = ['data','record_data','form_data','payload','raw'];
+          var formData = null;
+          for (var i = 0; i < dataKeys.length; i++) {
+            var v = row[dataKeys[i]];
+            if (v && typeof v === 'object') { formData = v; break; }
+            if (v && typeof v === 'string') {
+              try { formData = JSON.parse(v); break; } catch(e){}
+            }
+          }
+          // fallback: use all non-meta columns as the form data
+          if (!formData) {
+            var skip = ['id','created_at','updated_at','synced_at','needs_correction','correction_notes','_synced','record_id'];
+            formData = {};
+            Object.keys(row).forEach(function (k) { if (skip.indexOf(k) === -1) formData[k] = row[k]; });
+          }
+
+          if (typeof loadInto === 'function') {
+            if (row.record_id) recId = row.record_id;
+            loadInto(formData);
+            pRec(formData); // save back to localStorage for offline use
+            closeRestoreModal();
+            showToast('📥 Record restored — continue filling it in');
+          }
+        });
+        list.appendChild(card);
+      });
+    })
+    .catch(function (err) {
+      status.textContent = 'Could not reach server. Check connection. (' + err.message + ')';
+    });
+  };
+
+  window.closeRestoreModal = function () {
+    document.getElementById('restore-modal').style.display = 'none';
+  };
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFab);
+  } else {
+    initFab();
+  }
+})();

@@ -11,17 +11,45 @@ console.log('[HS] API_BASE =', API_BASE || '(same origin)');
 //  Token management 
 const Auth = {
   setToken(token) { localStorage.setItem('hs_jwt_token', token); },
-  getToken()      { return localStorage.getItem('hs_jwt_token') || ''; },
-  clearToken()    { localStorage.removeItem('hs_jwt_token'); },
+  getToken() {
+    return localStorage.getItem('hs_jwt_token')
+        || sessionStorage.getItem('hs_jwt_token')
+        // Fallback: token embedded in session objects (both keys written by authSaveSession)
+        || (() => { try { return JSON.parse(localStorage.getItem('chsa_session') || '{}').token || ''; } catch { return ''; } })()
+        || (() => { try { return JSON.parse(localStorage.getItem('chsa_auth')    || '{}').token || ''; } catch { return ''; } })()
+        || '';
+  },
+  clearToken() {
+    localStorage.removeItem('hs_jwt_token');
+    // Also wipe the token from both session stores so logout is complete
+    ['chsa_session', 'chsa_auth'].forEach(key => {
+      try {
+        const s = JSON.parse(localStorage.getItem(key) || '{}');
+        if (s.token) { delete s.token; localStorage.setItem(key, JSON.stringify(s)); }
+      } catch {}
+    });
+  },
   isLoggedIn()    { return !!this.getToken(); },
   getPayload() {
     try { return JSON.parse(atob(this.getToken().split('.')[1])); }
     catch { return null; }
   },
-  getInstitutionId() { return this.getPayload()?.institution_id || null; },
-  getRole()          { return this.getPayload()?.role || 'user'; },
-  isAdmin()          { return ['institution_admin','super_admin'].includes(this.getRole()); },
-  isSuperAdmin()     { return this.getRole() === 'super_admin'; },
+  getInstitutionId() {
+    // Try JWT payload first, then fall back to either session key
+    const fromJWT = this.getPayload()?.institution_id || null;
+    if (fromJWT) return fromJWT;
+    try { const v = JSON.parse(localStorage.getItem('chsa_session') || '{}').institution_id; if (v) return v; } catch {}
+    try { return JSON.parse(localStorage.getItem('chsa_auth') || '{}').institution_id || null; } catch { return null; }
+  },
+  getRole() {
+    // Try JWT payload first, then either session key
+    const fromJWT = this.getPayload()?.role || null;
+    if (fromJWT) return fromJWT;
+    try { const v = JSON.parse(localStorage.getItem('chsa_session') || '{}').role; if (v) return v; } catch {}
+    try { return JSON.parse(localStorage.getItem('chsa_auth') || '{}').role || 'user'; } catch { return 'user'; }
+  },
+  isAdmin()      { return ['institution_admin','super_admin'].includes(this.getRole()); },
+  isSuperAdmin() { return this.getRole() === 'super_admin' || localStorage.getItem('chsa_is_admin_bypass') === '1'; },
 };
 
 //  Base fetch wrapper 
@@ -241,6 +269,28 @@ const HSAdmin = {
 
   async addInstitution(name, code) {
     return apiFetch('/api/admin/institutions', { method: 'POST', body: JSON.stringify({ name, code }) });
+  },
+
+  // Institution Profile — GET reads profile, POST upserts it
+  // Both are scoped to the caller's institution_id (or a specific one for super_admin).
+  async getInstitutionProfile(institution_id) {
+    const qs = institution_id ? `?institution_id=${encodeURIComponent(institution_id)}` : '';
+    return apiFetch(`/api/admin/profile${qs}`);
+  },
+
+  async updateInstitutionProfile(institution_id, data) {
+    return apiFetch(`/api/admin/profile?institution_id=${encodeURIComponent(institution_id)}`, {
+      method: 'POST',
+      body: JSON.stringify({ institution_id, ...data }),
+    });
+  },
+
+  // Image upload — sends base64 image through the secure backend (avoids exposing Supabase service key)
+  async uploadImage(image_base64, folder = 'evidence', filename) {
+    return apiFetch('/api/admin/upload-image', {
+      method: 'POST',
+      body: JSON.stringify({ image_base64, folder, ...(filename ? { filename } : {}) }),
+    });
   },
 };
 
